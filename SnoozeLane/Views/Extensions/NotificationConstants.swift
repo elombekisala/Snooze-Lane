@@ -1,0 +1,18 @@
+//
+//  NotificationConstants.swift
+//  SnoozeLane
+//
+//  Created by Elombe.Kisala on 8/31/24.
+//
+
+import Foundation
+import SwiftUI
+import MapKit
+
+// Define custom notification names for better code management
+extension Notification.Name {
+    static let updateCircle = Notification.Name("updateCircle")
+    static let didUpdateLocation = Notification.Name("didUpdateLocation")
+    static let locationSelected = Notification.Name("locationSelected")
+    static let alarmDistanceChanged = Notification.Name("alarmDistanceChanged")
+}
