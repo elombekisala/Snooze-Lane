@@ -113,6 +113,7 @@
 		1B6652292BE17F270030B2CF /* Home.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Home.swift; sourceTree = "<group>"; };
 		1B6C8D462BC82705001C3A6B /* FavoriteDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteDestination.swift; sourceTree = "<group>"; };
 		1B6C8D482BC83DE6001C3A6B /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "../../../../../../../../../Desktop/16-5-18-19-15-14-1-12/SWFT Mobile Apps/SnoozeLane/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		1B7211502DAD84B900B25635 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; name = "GoogleService-Info.plist"; path = "../../../../../Desktop/16-5-18-19-15-14-1-12/SWFT Mobile Apps/SnoozeLane/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		1B769FB42BE316310034AF83 /* RoundedCorners.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundedCorners.swift; sourceTree = "<group>"; };
 		1B7AF34B2BB05152006BC27F /* SnoozeLane.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SnoozeLane.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B7AF34E2BB05152006BC27F /* SnoozeLaneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeLaneApp.swift; sourceTree = "<group>"; };
@@ -235,6 +236,7 @@
 		1B7AF3422BB05152006BC27F = {
 			isa = PBXGroup;
 			children = (
+				1B7211502DAD84B900B25635 /* GoogleService-Info.plist */,
 				1B7AF34D2BB05152006BC27F /* SnoozeLane */,
 				1B7AF35E2BB05155006BC27F /* SnoozeLaneTests */,
 				1B7AF3682BB05155006BC27F /* SnoozeLaneUITests */,
