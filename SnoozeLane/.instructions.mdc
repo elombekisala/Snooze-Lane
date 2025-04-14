@@ -1,0 +1,158 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+.
+├── AppDelegate.swift
+├── Assets.xcassets
+│   ├── AccentColor.colorset
+│   │   └── Contents.json
+│   ├── AppIcon.appiconset
+│   │   ├── Contents.json
+│   │   ├── icon-40@2x.png
+│   │   ├── icon-40@3x.png
+│   │   ├── icon-60@2x.png
+│   │   ├── icon-60@3x.png
+│   │   ├── icon-small.png
+│   │   ├── icon-small@2x.png
+│   │   ├── icon-small@3x.png
+│   │   ├── icon.png
+│   │   ├── icon@2x.png
+│   │   ├── notification-icon@2x.png
+│   │   ├── notification-icon@3x.png
+│   │   ├── notification-icon~ipad.png
+│   │   ├── notification-icon~ipad@2x.png
+│   │   └── snooze_lane_app_logo_3.jpg
+│   ├── Colors
+│   │   ├── 1.colorset
+│   │   ├── 2.colorset
+│   │   ├── 3.colorset
+│   │   ├── 4.colorset
+│   │   ├── 5.colorset
+│   │   ├── 6.colorset
+│   │   ├── Contents.json
+│   │   └── MainOrange.colorset
+│   ├── Contents.json
+│   ├── appLogo.imageset
+│   │   ├── Contents.json
+│   │   ├── Image~universal@1x.png
+│   │   ├── Image~universal@2x.png
+│   │   └── Image~universal@3x.png
+│   ├── image1.imageset
+│   │   ├── Contents.json
+│   │   ├── sl-step1-image~ipad@1x.png
+│   │   ├── sl-step1-image~ipad@2x.png
+│   │   ├── sl-step1-image~iphone@1x.png
+│   │   ├── sl-step1-image~iphone@2x.png
+│   │   ├── sl-step1-image~iphone@3x.png
+│   │   ├── sl-step1-image~universal@1x.png
+│   │   ├── sl-step1-image~universal@2x.png
+│   │   └── sl-step1-image~universal@3x.png
+│   ├── image2.imageset
+│   │   ├── Contents.json
+│   │   ├── sl-image-3-v2~ipad@1x.png
+│   │   ├── sl-image-3-v2~ipad@2x.png
+│   │   ├── sl-image-3-v2~iphone@1x.png
+│   │   ├── sl-image-3-v2~iphone@2x.png
+│   │   ├── sl-image-3-v2~iphone@3x.png
+│   │   ├── sl-image-3-v2~universal@1x.png
+│   │   ├── sl-image-3-v2~universal@2x.png
+│   │   └── sl-image-3-v2~universal@3x.png
+│   ├── image3.imageset
+│   │   ├── Contents.json
+│   │   ├── sl-step3-image~ipad@1x.png
+│   │   ├── sl-step3-image~ipad@2x.png
+│   │   ├── sl-step3-image~iphone@1x.png
+│   │   ├── sl-step3-image~iphone@2x.png
+│   │   ├── sl-step3-image~iphone@3x.png
+│   │   ├── sl-step3-image~universal@1x.png
+│   │   ├── sl-step3-image~universal@2x.png
+│   │   └── sl-step3-image~universal@3x.png
+│   ├── image4.imageset
+│   │   ├── Contents.json
+│   │   ├── image4~universal@1x.png
+│   │   ├── image4~universal@2x.png
+│   │   └── image4~universal@3x.png
+│   ├── marker_blue_white_logo.imageset
+│   │   ├── Contents.json
+│   │   ├── marker_blue_white_logo~universal@1x.png
+│   │   ├── marker_blue_white_logo~universal@2x.png
+│   │   └── marker_blue_white_logo~universal@3x.png
+│   ├── marker_main_logo.imageset
+│   │   ├── Contents.json
+│   │   ├── marker_main_logo~universal@1x.png
+│   │   ├── marker_main_logo~universal@2x.png
+│   │   └── marker_main_logo~universal@3x.png
+│   ├── marker_orange_white_logo.imageset
+│   │   ├── Contents.json
+│   │   ├── marker_orange_white_logo~universal@1x.png
+│   │   ├── marker_orange_white_logo~universal@2x.png
+│   │   └── marker_orange_white_logo~universal@3x.png
+│   ├── marker_transparent_bg_logo.imageset
+│   │   ├── Contents.json
+│   │   ├── marker_transparent_bg_logo~universal@1x.png
+│   │   ├── marker_transparent_bg_logo~universal@2x.png
+│   │   └── marker_transparent_bg_logo~universal@3x.png
+│   └── marker_transparent_bg_white_logo.imageset
+│       ├── Contents.json
+│       ├── snooze_lane_app_marker_transparent_bg_white_logo.png~universal@1x.png
+│       ├── snooze_lane_app_marker_transparent_bg_white_logo.png~universal@2x.png
+│       └── snooze_lane_app_marker_transparent_bg_white_logo.png~universal@3x.png
+├── Info.plist
+├── Managers
+│   └── LocationManager.swift
+├── Models
+│   ├── AiVoiceModels.swift
+│   ├── Countries.swift
+│   ├── FavoriteDestination.swift
+│   ├── MapViewState.swift
+│   ├── MenuTabs.swift
+│   ├── RideType.swift
+│   ├── SnoozeLaneLocation.swift
+│   ├── Sound.swift
+│   └── WindowSharedModel.swift
+├── Preview Content
+│   └── Preview Assets.xcassets
+│       └── Contents.json
+├── Services
+│   ├── AppSession.swift
+│   └── TwilioService.swift
+├── SnoozeLane.entitlements
+├── SnoozeLaneApp.swift
+├── ViewModels
+│   ├── AiAssistantViewModel.swift
+│   ├── ContactView.swift
+│   ├── LocationSearchViewModel.swift
+│   ├── LoginViewModel.swift
+│   ├── MapViewRepresentable.swift
+│   └── TripProgressViewModel.swift
+└── Views
+    ├── Auth
+    │   ├── AlertView.swift
+    │   ├── CustomNumberPad.swift
+    │   ├── CustomTextField.swift
+    │   ├── Login.swift
+    │   ├── PhoneAuthView.swift
+    │   ├── VerificationView.swift
+    │   └── WalkthroughScreen.swift
+    ├── Extensions
+    │   ├── GradientText.swift
+    │   ├── NotificationConstants.swift
+    │   ├── RoundedCorners.swift
+    │   └── View+Extensions.swift
+    ├── LocationSearch
+    │   ├── LocationSearchActivationView.swift
+    │   └── LocationSearchResultsCell.swift
+    └── Main
+        ├── AiAssistantView.swift
+        ├── AlarmSettingsView.swift
+        ├── BannerAd.swift
+        ├── ContentView.swift
+        ├── Home.swift
+        ├── LocationDetailsView.swift
+        ├── LocationSearchView.swift
+        ├── MapView.swift
+        ├── SettingsView.swift
+        ├── TripProgressView.swift
+        └── TripSetupView.swift
