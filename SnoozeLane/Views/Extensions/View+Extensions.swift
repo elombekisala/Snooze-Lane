@@ -19,14 +19,20 @@ extension View {
 /// Custom TabView Modifier
 extension TabView {
     @ViewBuilder
-    func tabSheet<SheetContent: View>(initialHeight: CGFloat = 100, sheetCornerRadius: CGFloat = 15, @ViewBuilder content: @escaping () -> SheetContent) -> some View {
+    func tabSheet<SheetContent: View>(
+        initialHeight: CGFloat = 100, sheetCornerRadius: CGFloat = 15,
+        @ViewBuilder content: @escaping () -> SheetContent
+    ) -> some View {
         self
-            .modifier(BottomSheetModifier(initialHeight: initialHeight, sheetCornerRadius: sheetCornerRadius, sheetView: content()))
+            .modifier(
+                BottomSheetModifier(
+                    initialHeight: initialHeight, sheetCornerRadius: sheetCornerRadius,
+                    sheetView: content()))
     }
 }
 
 /// Helper View Modifier
-fileprivate struct BottomSheetModifier<SheetContent: View>: ViewModifier {
+private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
     var initialHeight: CGFloat
     var sheetCornerRadius: CGFloat
     var sheetView: SheetContent
@@ -34,33 +40,36 @@ fileprivate struct BottomSheetModifier<SheetContent: View>: ViewModifier {
     @State private var showSheet: Bool = true
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $showSheet, content: {
-                VStack(spacing: 0) {
-                    sheetView
-//                        .background(.regularMaterial)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color("4"),Color("5"), Color("5")]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+            .sheet(
+                isPresented: $showSheet,
+                content: {
+                    VStack(spacing: 0) {
+                        sheetView
+                            //                        .background(.regularMaterial)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]
+                                    ),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .opacity(0.95)
+                                .ignoresSafeArea()
                             )
-                            .opacity(0.95)
-                            .ignoresSafeArea()
-                        )
-                        .zIndex(0)
-                    
-                    Divider()
-                        .hidden()
-                    
-                    Rectangle()
-                        .fill(.clear)
-                        .frame(height: 55)
-                }
-                .presentationDetents([.height(initialHeight), .medium, .fraction(0.99)])
-                .presentationCornerRadius(sheetCornerRadius)
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                .presentationBackground(.clear)
-                .interactiveDismissDisabled()
-            })
+                            .zIndex(0)
+
+                        Divider()
+                            .hidden()
+
+                        Rectangle()
+                            .fill(.clear)
+                            .frame(height: 55)
+                    }
+                    .presentationDetents([.height(initialHeight), .medium, .fraction(0.99)])
+                    .presentationCornerRadius(sheetCornerRadius)
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                    .presentationBackground(.clear)
+                    .interactiveDismissDisabled()
+                })
     }
 }
