@@ -39,12 +39,15 @@ struct Home: View {
                 .tag(MenuTabs.search)
                 .hideNativeTabBar()
 
+                // Favorites Tab - Commented out for MVP
+                /*
                 NavigationStack {
                     Text("Favorites")
                         .padding(.bottom, windowSharedModel.contentPadding)
                 }
                 .tag(MenuTabs.favorites)
                 .hideNativeTabBar()
+                */
 
                 NavigationStack {
                     AiAssistantView()
@@ -66,8 +69,8 @@ struct Home: View {
                         VStack(spacing: 15) {
                             if windowSharedModel.activeTab == .search {
                                 dynamicSheet
-                            } else if windowSharedModel.activeTab == .favorites {
-                                Text("Favorites")
+//                            } else if windowSharedModel.activeTab == .favorites {
+                                // Text("Favorites") - Commented out for MVP
                             } else if windowSharedModel.activeTab == .ai {
                                 AiAssistantView()
                             } else if windowSharedModel.activeTab == .settings {
@@ -85,6 +88,8 @@ struct Home: View {
                                 .font(.title3.bold())
                         }
 
+                        // Favorites toolbar item - Commented out for MVP
+                        /*
                         if windowSharedModel.activeTab == .favorites {
                             ToolbarItem(placement: .topBarTrailing) {
                                 Button(
@@ -94,6 +99,7 @@ struct Home: View {
                                     })
                             }
                         }
+                        */
                     })
                 }
             }
