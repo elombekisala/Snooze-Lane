@@ -36,7 +36,10 @@ struct SettingsView: View {
     @State private var showingSaveConfirmation = false
     @State private var showContactView = false
     @State private var savedContact: CNContact?
-    @State private var showingInstructions = false
+    @State private var showInstructions = false
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    @State private var alertTitle = ""
 
     let twilioPhoneNumber = "8557096502"
 
@@ -105,7 +108,7 @@ struct SettingsView: View {
                     }
 
                     Button(action: {
-                        showingInstructions = true
+                        showInstructions = true
                     }) {
                         HStack {
                             Image(systemName: "info.circle")
@@ -155,31 +158,47 @@ struct SettingsView: View {
                 ContactView(contact: contact)
             }
         }
-        .sheet(isPresented: $showingInstructions) {
+        .sheet(isPresented: $showInstructions) {
             InstructionsView()
         }
-        .onAppear(perform: fetchCallCount)
+        .onAppear {
+            fetchCallCount()
+            // Set up notification observer
+            let notificationCenter = NotificationCenter.default
+            notificationCenter.addObserver(
+                forName: .callCountUpdated,
+                object: nil,
+                queue: .main
+            ) { notification in
+                if let count = notification.userInfo?["count"] as? Int {
+                    DispatchQueue.main.async {
+                        self.callCount = count
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            // Remove observer when view disappears
+            NotificationCenter.default.removeObserver(self)
+        }
     }
 
-    func fetchCallCount() {
-        guard let userID = Auth.auth().currentUser?.uid else {
-            print("Error: User not logged in")
-            return
-        }
+    private func fetchCallCount() {
+        guard let userID = Auth.auth().currentUser?.uid else { return }
 
-        let userRef = Firestore.firestore().collection("Users").document(userID)
-        userRef.getDocument { document, error in
+        let db = Firestore.firestore()
+        db.collection("Users").document(userID).getDocument { document, error in
             if let error = error {
-                print("Error fetching document: \(error.localizedDescription)")
+                print("Error getting call count: \(error)")
                 return
             }
 
-            if let document = document, document.exists, let data = document.data(),
-                let count = data["CallCount"] as? Int
-            {
-                self.callCount = count
-            } else {
-                print("Document does not exist or call count not found")
+            if let document = document, document.exists {
+                if let count = document.data()?["CallCount"] as? Int {
+                    DispatchQueue.main.async {
+                        self.callCount = count
+                    }
+                }
             }
         }
     }
@@ -264,25 +283,36 @@ struct SettingsView: View {
                     // Successfully revoked token, now sign out on client side
                     do {
                         try Auth.auth().signOut()
-                        loginViewModel.status = false  // Update login status to reflect logout
-                        print("Successfully signed out")
 
                         // Clear any local data related to the user session
                         clearLocalData()
 
-                        // Navigate to login screen
+                        // Update login status to reflect logout
                         DispatchQueue.main.async {
+                            loginViewModel.status = false
+
+                            // Dismiss the current view first
                             presentationMode.wrappedValue.dismiss()
-                            // Reset the root view to content view which will show login screen
-                            if let window = UIApplication.shared.windows.first {
-                                let contentView = ContentView()
-                                    .environmentObject(loginViewModel)
-                                    .environmentObject(locationManager)
-                                window.rootViewController = UIHostingController(
-                                    rootView: contentView)
-                                window.makeKeyAndVisible()
+
+                            // Wait a brief moment before resetting the root view
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                if let window = UIApplication.shared.windows.first {
+                                    // Create new content view with clean state
+                                    let contentView = ContentView()
+                                        .environmentObject(loginViewModel)
+                                        .environmentObject(locationManager)
+
+                                    // Wrap in animation for smooth transition
+                                    withAnimation {
+                                        window.rootViewController = UIHostingController(
+                                            rootView: contentView)
+                                    }
+                                    window.makeKeyAndVisible()
+                                }
                             }
                         }
+
+                        print("Successfully signed out")
                     } catch let signOutError as NSError {
                         print("Error signing out: \(signOutError.localizedDescription)")
                         isLoggingOut = false
