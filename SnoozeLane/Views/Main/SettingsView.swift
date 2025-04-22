@@ -3,6 +3,7 @@ import ContactsUI
 import Firebase
 import LinkPresentation
 import SwiftUI
+import UIKit
 
 //struct SettingsView: View {
 //    var body: some View {
@@ -24,9 +25,11 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var loginViewModel: LoginViewModel
+    @EnvironmentObject var locationManager: LocationManager
     @Environment(\.presentationMode) var presentationMode
     @AppStorage("hasCompletedWalkthrough") var hasCompletedWalkthrough: Bool = false
     @AppStorage("currentPage") var currentPage: Int = 1
+    @State private var isLoggingOut = false
 
     @State private var callCount: Int = 0
     @State private var showingContactAddAlert = false
@@ -226,15 +229,20 @@ struct SettingsView: View {
             return
         }
 
+        isLoggingOut = true
+
         // Revoke refresh tokens
         Auth.auth().currentUser?.getIDTokenForcingRefresh(true) { idToken, error in
             if let error = error {
                 print("Error fetching ID token: \(error.localizedDescription)")
+                isLoggingOut = false
                 return
             }
 
             // Revoke the token on the Firebase server side
-            if let apiKey = Bundle.main.object(forInfoDictionaryKey: "FIREBASE_API_KEY") as? String
+            if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+                let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
+                let apiKey = dict["API_KEY"] as? String
             {
                 let url = URL(
                     string:
@@ -242,15 +250,14 @@ struct SettingsView: View {
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                let body = [
-                    "idToken": idToken
-                ]
+                let body = ["idToken": idToken]
 
                 request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
 
                 let task = URLSession.shared.dataTask(with: request) { data, response, error in
                     if let error = error {
                         print("Error revoking token on server side: \(error.localizedDescription)")
+                        isLoggingOut = false
                         return
                     }
 
@@ -263,18 +270,28 @@ struct SettingsView: View {
                         // Clear any local data related to the user session
                         clearLocalData()
 
-                        // Optionally navigate the user back to the login screen
+                        // Navigate to login screen
                         DispatchQueue.main.async {
                             presentationMode.wrappedValue.dismiss()
+                            // Reset the root view to content view which will show login screen
+                            if let window = UIApplication.shared.windows.first {
+                                let contentView = ContentView()
+                                    .environmentObject(loginViewModel)
+                                    .environmentObject(locationManager)
+                                window.rootViewController = UIHostingController(
+                                    rootView: contentView)
+                                window.makeKeyAndVisible()
+                            }
                         }
-
                     } catch let signOutError as NSError {
                         print("Error signing out: \(signOutError.localizedDescription)")
+                        isLoggingOut = false
                     }
                 }
                 task.resume()
             } else {
-                print("Firebase API Key not found in Info.plist")
+                print("Failed to load GoogleService-Info.plist or find API_KEY")
+                isLoggingOut = false
             }
         }
     }
