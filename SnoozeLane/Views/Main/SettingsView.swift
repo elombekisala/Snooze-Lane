@@ -26,6 +26,7 @@ struct SettingsView: View {
     @EnvironmentObject var loginViewModel: LoginViewModel
     @Environment(\.presentationMode) var presentationMode
     @AppStorage("hasCompletedWalkthrough") var hasCompletedWalkthrough: Bool = false
+    @AppStorage("currentPage") var currentPage: Int = 1
 
     @State private var callCount: Int = 0
     @State private var showingContactAddAlert = false
@@ -121,6 +122,7 @@ struct SettingsView: View {
                 // Settings Section
                 VStack(spacing: 16) {
                     Button("Restart Walkthrough") {
+                        currentPage = 1
                         hasCompletedWalkthrough = false
                     }
                     .buttonStyle(SettingsButtonStyle())
