@@ -39,23 +39,6 @@ struct Home: View {
                 .tag(MenuTabs.search)
                 .hideNativeTabBar()
 
-                // Favorites Tab - Commented out for MVP
-                /*
-                NavigationStack {
-                    Text("Favorites")
-                        .padding(.bottom, windowSharedModel.contentPadding)
-                }
-                .tag(MenuTabs.favorites)
-                .hideNativeTabBar()
-                */
-
-                NavigationStack {
-                    AiAssistantView()
-                        .padding(.bottom, windowSharedModel.contentPadding)
-                }
-                .tag(MenuTabs.ai)
-                .hideNativeTabBar()
-
                 NavigationStack {
                     SettingsView()
                         .padding(.bottom, windowSharedModel.contentPadding)
@@ -69,10 +52,6 @@ struct Home: View {
                         VStack(spacing: 15) {
                             if windowSharedModel.activeTab == .search {
                                 dynamicSheet
-//                            } else if windowSharedModel.activeTab == .favorites {
-                                // Text("Favorites") - Commented out for MVP
-                            } else if windowSharedModel.activeTab == .ai {
-                                AiAssistantView()
                             } else if windowSharedModel.activeTab == .settings {
                                 SettingsView()
                             }
@@ -87,19 +66,6 @@ struct Home: View {
                             Text(windowSharedModel.activeTab.title)
                                 .font(.title3.bold())
                         }
-
-                        // Favorites toolbar item - Commented out for MVP
-                        /*
-                        if windowSharedModel.activeTab == .favorites {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button(
-                                    action: {},
-                                    label: {
-                                        Image(systemName: "plus")
-                                    })
-                            }
-                        }
-                        */
                     })
                 }
             }

@@ -10,21 +10,21 @@ import SwiftUI
 /// Tabs
 enum MenuTabs: String, CaseIterable {
     case search = "magnifyingglass"
-    case home = "house"
+    // case home = "house" - Removed for MVP
     // case favorites = "star.square.on.square" - Commented out for MVP
-    case ai = "sparkles"
+    // case ai = "sparkles" - Removed for MVP
     case settings = "gear"
 
     var title: String {
         switch self {
         case .search:
             return "Search"
-        case .home:
-            return "Home"
+        // case .home: - Removed for MVP
+        //     return "Home"
         // case .favorites: - Commented out for MVP
         //     return "Favorites"
-        case .ai:
-            return "AI Assistant"
+        // case .ai: - Removed for MVP
+        //     return "AI Assistant"
         case .settings:
             return "Settings"
         }
