@@ -45,7 +45,6 @@ private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
                 content: {
                     VStack(spacing: 0) {
                         sheetView
-                            //                        .background(.regularMaterial)
                             .background(
                                 LinearGradient(
                                     gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]
@@ -57,19 +56,18 @@ private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
                                 .ignoresSafeArea()
                             )
                             .zIndex(0)
-
-                        Divider()
-                            .hidden()
-
-                        Rectangle()
-                            .fill(.clear)
-                            .frame(height: 55)
                     }
                     .presentationDetents([.height(initialHeight), .medium, .fraction(0.99)])
+                    .presentationDragIndicator(.visible)
                     .presentationCornerRadius(sheetCornerRadius)
-                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                    .presentationBackgroundInteraction(.enabled)
                     .presentationBackground(.clear)
                     .interactiveDismissDisabled()
+                    .safeAreaInset(edge: .bottom) {
+                        Rectangle()
+                            .fill(.clear)
+                            .frame(height: 65)  // Increased height to account for tab bar
+                    }
                 })
     }
 }
