@@ -1,25 +1,33 @@
-import Foundation
 import CoreLocation
+import Foundation
 
+// MARK: - Location Manager
 final class LocationManager: NSObject, ObservableObject {
+    // MARK: - Properties
     @Published var location: CLLocation? = nil
     @Published var authorizationStatus: CLAuthorizationStatus? = nil
     @Published var showLocationDeniedAlert = false
-    var userHasInteractedWithMap = false
+
     private let locationManager = CLLocationManager()
     private var lastProcessedLocation: CLLocation?
     private var lastProcessedTime: Date?
-    private let minimumDistanceThreshold: CLLocationDistance = 30 // meters
-    private let minimumTimeThreshold: TimeInterval = 60 // seconds
+    private let minimumDistanceThreshold: CLLocationDistance = 30  // meters
+    private let minimumTimeThreshold: TimeInterval = 60  // seconds
     private var calculatedDistance: Double = 0.0
-    static let shared = LocationManager()
-    
-    weak var locationSearchViewModel: LocationSearchViewModel?
-    
+
+    var userHasInteractedWithMap = false
     var monitoredRegion: CLCircularRegion?
-    
+    weak var locationSearchViewModel: LocationSearchViewModel?
+
+    static let shared = LocationManager()
+
+    // MARK: - Initialization
     override init() {
         super.init()
+        setupLocationManager()
+    }
+
+    private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
         locationManager.allowsBackgroundLocationUpdates = true
@@ -27,53 +35,79 @@ final class LocationManager: NSObject, ObservableObject {
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
     }
-    
+
+    // MARK: - Authorization
     func requestAuthorization() {
         locationManager.requestWhenInUseAuthorization()
         locationManager.requestAlwaysAuthorization()
     }
-    
+
+    // MARK: - Location Updates
+    func startUpdatingLocation() {
+        locationManager.startUpdatingLocation()
+    }
+
+    func stopUpdatingLocation() {
+        locationManager.stopUpdatingLocation()
+    }
+
+    // MARK: - Distance Calculations
     func calculateDistance(to destination: CLLocationCoordinate2D) {
         guard let currentLocation = location else { return }
-        let destinationLocation = CLLocation(latitude: destination.latitude, longitude: destination.longitude)
+        let destinationLocation = CLLocation(
+            latitude: destination.latitude, longitude: destination.longitude)
         calculatedDistance = currentLocation.distance(from: destinationLocation)
     }
-    
-    func calculateDistanceToDestination(from location: CLLocation, to destination: CLLocationCoordinate2D) {
-        let destinationLocation = CLLocation(latitude: destination.latitude, longitude: destination.longitude)
+
+    func calculateDistanceToDestination(
+        from location: CLLocation, to destination: CLLocationCoordinate2D
+    ) {
+        let destinationLocation = CLLocation(
+            latitude: destination.latitude, longitude: destination.longitude)
         calculatedDistance = location.distance(from: destinationLocation)
     }
-    
+
     func getCalculatedDistance() -> Double {
         return calculatedDistance
     }
-    
+
+    // MARK: - Region Monitoring
     func startMonitoring(_ location: CLLocation, radius: Double = 500.0) {
-        let region = CLCircularRegion(center: location.coordinate, radius: radius, identifier: "DestinationRegion")
+        let region = CLCircularRegion(
+            center: location.coordinate, radius: radius, identifier: "DestinationRegion")
         self.monitoredRegion = region
         locationManager.startMonitoring(for: region)
     }
-    
+
     func stopMonitoring() {
         if let region = self.monitoredRegion {
             locationManager.stopMonitoring(for: region)
         }
         self.monitoredRegion = nil
     }
-    
-    func startUpdatingLocation() {
-        locationManager.startUpdatingLocation()
+
+    // MARK: - Map Management
+    func clearMapElements() {
+        stopMonitoring()
+        userHasInteractedWithMap = false
+        NotificationCenter.default.post(name: .didClearMapElements, object: nil)
     }
-    
-    func stopUpdatingLocation() {
-        locationManager.stopUpdatingLocation()
+
+    func centerOnUserLocation() {
+        guard let currentLocation = location else { return }
+        updateMapRegion(with: currentLocation)
     }
-    
+
     func updateMapRegion(with location: CLLocation) {
         NotificationCenter.default.post(name: .didUpdateLocation, object: location)
     }
+
+    func userInteractedWithMap() {
+        userHasInteractedWithMap = true
+    }
 }
 
+// MARK: - CLLocationManagerDelegate
 extension LocationManager: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
@@ -83,29 +117,26 @@ extension LocationManager: CLLocationManagerDelegate {
             showLocationDeniedAlert = true
         }
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        
-        let shouldProcessUpdate = lastProcessedLocation == nil ||
-        location.distance(from: lastProcessedLocation!) > minimumDistanceThreshold ||
-        Date().timeIntervalSince(lastProcessedTime!) > minimumTimeThreshold
-        
+
+        let shouldProcessUpdate =
+            lastProcessedLocation == nil
+            || location.distance(from: lastProcessedLocation!) > minimumDistanceThreshold
+            || Date().timeIntervalSince(lastProcessedTime!) > minimumTimeThreshold
+
         if shouldProcessUpdate {
             self.location = location
             self.lastProcessedLocation = location
             self.lastProcessedTime = Date()
-            
+
             if !userHasInteractedWithMap {
                 updateMapRegion(with: location)
             }
         }
     }
-    
-    func userInteractedWithMap() {
-        userHasInteractedWithMap = true
-    }
-    
+
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("LocationManager did fail with error: \(error.localizedDescription)")
     }
