@@ -23,7 +23,60 @@ import UIKit
 //    }
 //}
 
+// Add SettingsViewModel to manage state
+class SettingsViewModel: ObservableObject {
+    @Published var callCount: Int = 0
+    private var observer: NSObjectProtocol?
+    private let notificationCenter = NotificationCenter.default
+
+    init() {
+        setupObserver()
+        fetchCallCount()
+    }
+
+    deinit {
+        if let observer = observer {
+            notificationCenter.removeObserver(observer)
+        }
+    }
+
+    private func setupObserver() {
+        observer = notificationCenter.addObserver(
+            forName: .callCountUpdated,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let newCount = notification.userInfo?["count"] as? Int {
+                self?.callCount = newCount
+                print("Call count updated to: \(newCount)")
+            }
+        }
+    }
+
+    func fetchCallCount() {
+        guard let userID = Auth.auth().currentUser?.uid else { return }
+
+        let db = Firestore.firestore()
+        db.collection("Users").document(userID).getDocument { [weak self] document, error in
+            if let error = error {
+                print("Error getting call count: \(error)")
+                return
+            }
+
+            if let document = document, document.exists {
+                if let count = document.data()?["CallCount"] as? Int {
+                    DispatchQueue.main.async {
+                        self?.callCount = count
+                        print("Initial call count fetched: \(count)")
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct SettingsView: View {
+    @StateObject private var viewModel = SettingsViewModel()
     @EnvironmentObject var loginViewModel: LoginViewModel
     @EnvironmentObject var locationManager: LocationManager
     @Environment(\.presentationMode) var presentationMode
@@ -31,7 +84,6 @@ struct SettingsView: View {
     @AppStorage("currentPage") var currentPage: Int = 1
     @State private var isLoggingOut = false
 
-    @State private var callCount: Int = 0
     @State private var showingContactAddAlert = false
     @State private var showingSaveConfirmation = false
     @State private var showContactView = false
@@ -69,7 +121,7 @@ struct SettingsView: View {
                         .font(.headline)
                         .foregroundColor(Color("2"))
 
-                    Text("\(callCount)")
+                    Text("\(viewModel.callCount)")
                         .font(.system(size: 48, weight: .bold))
                         .foregroundColor(Color("MainOrange"))
 
@@ -162,44 +214,7 @@ struct SettingsView: View {
             InstructionsView()
         }
         .onAppear {
-            fetchCallCount()
-            // Set up notification observer
-            let notificationCenter = NotificationCenter.default
-            notificationCenter.addObserver(
-                forName: .callCountUpdated,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let count = notification.userInfo?["count"] as? Int {
-                    DispatchQueue.main.async {
-                        self.callCount = count
-                    }
-                }
-            }
-        }
-        .onDisappear {
-            // Remove observer when view disappears
-            NotificationCenter.default.removeObserver(self)
-        }
-    }
-
-    private func fetchCallCount() {
-        guard let userID = Auth.auth().currentUser?.uid else { return }
-
-        let db = Firestore.firestore()
-        db.collection("Users").document(userID).getDocument { document, error in
-            if let error = error {
-                print("Error getting call count: \(error)")
-                return
-            }
-
-            if let document = document, document.exists {
-                if let count = document.data()?["CallCount"] as? Int {
-                    DispatchQueue.main.async {
-                        self.callCount = count
-                    }
-                }
-            }
+            viewModel.fetchCallCount()
         }
     }
 
@@ -239,7 +254,7 @@ struct SettingsView: View {
 
     func clearLocalData() {
         hasCompletedWalkthrough = false
-        callCount = 0
+        viewModel.callCount = 0
     }
 
     func logout() {
