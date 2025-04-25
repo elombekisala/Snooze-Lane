@@ -7,12 +7,13 @@ final class LocationManager: NSObject, ObservableObject {
     @Published var location: CLLocation? = nil
     @Published var authorizationStatus: CLAuthorizationStatus? = nil
     @Published var showLocationDeniedAlert = false
+    @Published var locationAccuracy: CLAccuracyAuthorization? = nil
 
     private let locationManager = CLLocationManager()
     private var lastProcessedLocation: CLLocation?
     private var lastProcessedTime: Date?
-    private let minimumDistanceThreshold: CLLocationDistance = 30  // meters
-    private let minimumTimeThreshold: TimeInterval = 60  // seconds
+    private var minimumDistanceThreshold: CLLocationDistance = 30  // meters
+    private var minimumTimeThreshold: TimeInterval = 60  // seconds
     private var calculatedDistance: Double = 0.0
 
     var userHasInteractedWithMap = false
@@ -29,11 +30,14 @@ final class LocationManager: NSObject, ObservableObject {
 
     private func setupLocationManager() {
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.activityType = .otherNavigation
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
+        locationManager.showsBackgroundLocationIndicator = true
+        
+        // Request authorization
         locationManager.requestWhenInUseAuthorization()
-        locationManager.startUpdatingLocation()
     }
 
     // MARK: - Authorization
@@ -52,6 +56,17 @@ final class LocationManager: NSObject, ObservableObject {
     }
 
     // MARK: - Distance Calculations
+    private func calculateThresholds(for location: CLLocation) {
+        let speed = location.speed
+        if speed > 10 { // Moving fast
+            minimumDistanceThreshold = 50
+            minimumTimeThreshold = 30
+        } else { // Moving slow or stationary
+            minimumDistanceThreshold = 30
+            minimumTimeThreshold = 60
+        }
+    }
+
     func calculateDistance(to destination: CLLocationCoordinate2D) {
         guard let currentLocation = location else { return }
         let destinationLocation = CLLocation(
@@ -75,6 +90,8 @@ final class LocationManager: NSObject, ObservableObject {
     func startMonitoring(_ location: CLLocation, radius: Double = 500.0) {
         let region = CLCircularRegion(
             center: location.coordinate, radius: radius, identifier: "DestinationRegion")
+        region.notifyOnEntry = true
+        region.notifyOnExit = true
         self.monitoredRegion = region
         locationManager.startMonitoring(for: region)
     }
@@ -111,15 +128,32 @@ final class LocationManager: NSObject, ObservableObject {
 extension LocationManager: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
-        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
-            locationManager.startUpdatingLocation()
-        } else if authorizationStatus == .denied {
+        locationAccuracy = manager.accuracyAuthorization
+        
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            if manager.accuracyAuthorization == .fullAccuracy {
+                locationManager.startUpdatingLocation()
+            } else {
+                // Handle reduced accuracy
+                print("⚠️ Precise location access not granted")
+                // You might want to show an alert or message to the user
+            }
+        case .denied, .restricted:
             showLocationDeniedAlert = true
+            stopUpdatingLocation()
+        case .notDetermined:
+            requestAuthorization()
+        @unknown default:
+            print("⚠️ Unknown authorization status")
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
+        
+        // Update thresholds based on movement
+        calculateThresholds(for: location)
 
         let shouldProcessUpdate =
             lastProcessedLocation == nil
@@ -138,6 +172,40 @@ extension LocationManager: CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("LocationManager did fail with error: \(error.localizedDescription)")
+        if let error = error as? CLError {
+            switch error.code {
+            case .denied:
+                showLocationDeniedAlert = true
+                print("🚫 Location access denied")
+            case .locationUnknown:
+                print("📍 Location unknown, waiting for update")
+            case .promptDeclined:
+                print("❌ Location prompt declined by user")
+            case .rangingUnavailable:
+                print("⚠️ Ranging unavailable")
+            default:
+                print("⚠️ Other Core Location error: \(error.localizedDescription)")
+            }
+        } else {
+            print("❌ Other error: \(error.localizedDescription)")
+        }
     }
+    
+    func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        if region.identifier == "DestinationRegion" {
+            NotificationCenter.default.post(name: .didEnterDestinationRegion, object: nil)
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        if region.identifier == "DestinationRegion" {
+            NotificationCenter.default.post(name: .didExitDestinationRegion, object: nil)
+        }
+    }
+}
+
+// MARK: - Notification Names
+extension Notification.Name {
+    static let didEnterDestinationRegion = Notification.Name("didEnterDestinationRegion")
+    static let didExitDestinationRegion = Notification.Name("didExitDestinationRegion")
 }
