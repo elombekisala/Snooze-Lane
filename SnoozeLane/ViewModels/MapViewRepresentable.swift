@@ -25,12 +25,12 @@ struct MapViewRepresentable: UIViewRepresentable {
     func makeUIView(context: Context) -> MKMapView {
         mapView.delegate = context.coordinator
 
-        // Configure the map with new iOS 17 configuration
+        // Configure the map with new configuration
         let config = MKStandardMapConfiguration()
         config.emphasisStyle = .default
         config.showsTraffic = false
-        // Enable selectable map features
-        config.selectableMapFeatures = [.pointsOfInterest, .physicalFeatures]
+        
+        // Set the configuration
         mapView.preferredConfiguration = config
 
         // Configure the map view
@@ -261,21 +261,20 @@ extension MapViewRepresentable {
             return MKOverlayRenderer()
         }
 
-        // MARK: - New iOS 17 Delegate Methods
-        
-        func mapView(_ mapView: MKMapView, didChange position: MKMapCameraPosition) {
+        // MARK: - MapCoordinator
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             parent.userHasInteractedWithMap = true
         }
         
+        // Handle map feature selection through standard annotation selection
         func mapView(_ mapView: MKMapView, didSelect annotation: MKAnnotation) {
-            if let featureAnnotation = annotation as? MKMapFeatureAnnotation {
-                let request = MKMapItemRequest(mapFeatureAnnotation: featureAnnotation)
-                Task {
-                    guard let mapItem = try? await request.mapItem else { return }
-                    // Handle the selected map item
-                    parent.selectedMapItem = mapItem
-                    parent.showingDetails = true
-                }
+            if let placemark = annotation.subtitle {
+                // Create a map item from the selected annotation
+                let item = MKMapItem(placemark: MKPlacemark(coordinate: annotation.coordinate))
+                item.name = annotation.title ?? ""
+                
+                parent.selectedMapItem = item
+                parent.showingDetails = true
             }
         }
     }
