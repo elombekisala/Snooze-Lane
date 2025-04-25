@@ -4,6 +4,7 @@ import Firebase
 import LinkPresentation
 import SwiftUI
 import UIKit
+import os.log
 
 //struct SettingsView: View {
 //    var body: some View {
@@ -25,9 +26,11 @@ import UIKit
 
 // Add SettingsViewModel to manage state
 class SettingsViewModel: ObservableObject {
-    @Published var callCount: Int = 0
+    @Published private(set) var callCount: Int = 0
     private var observer: NSObjectProtocol?
     private let notificationCenter = NotificationCenter.default
+    private let db = Firestore.firestore()
+    private let logger = Logger(subsystem: "com.snoozelane.app", category: "Settings")
 
     init() {
         setupObserver()
@@ -40,35 +43,93 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    private func isUserLoggedIn() -> Bool {
+        if let user = Auth.auth().currentUser {
+            logger.debug("👤 User is logged in with ID: \(user.uid)")
+            return true
+        }
+        logger.warning("⚠️ No user is currently logged in")
+        return false
+    }
+
     private func setupObserver() {
+        logger.debug("🔄 Setting up call count observer")
         observer = notificationCenter.addObserver(
             forName: .callCountUpdated,
             object: nil,
             queue: .main
         ) { [weak self] notification in
             if let newCount = notification.userInfo?["count"] as? Int {
+                self?.logger.notice("📢 Received call count update: \(newCount)")
                 self?.callCount = newCount
-                print("Call count updated to: \(newCount)")
             }
         }
     }
 
     func fetchCallCount() {
-        guard let userID = Auth.auth().currentUser?.uid else { return }
+        guard isUserLoggedIn() else {
+            logger.error("❌ Cannot fetch call count: User not logged in")
+            return
+        }
 
-        let db = Firestore.firestore()
+        let userID = Auth.auth().currentUser!.uid
+        logger.debug("📊 Fetching call count for user: \(userID)")
+
         db.collection("Users").document(userID).getDocument { [weak self] document, error in
             if let error = error {
-                print("Error getting call count: \(error)")
+                self?.logger.error("❌ Error getting call count: \(error.localizedDescription)")
                 return
             }
 
             if let document = document, document.exists {
                 if let count = document.data()?["CallCount"] as? Int {
                     DispatchQueue.main.async {
+                        self?.logger.notice("📈 Initial call count fetched: \(count)")
                         self?.callCount = count
-                        print("Initial call count fetched: \(count)")
                     }
+                }
+            } else {
+                self?.logger.warning("⚠️ No document found for user")
+                // Initialize the call count for new users
+                self?.initializeUserCallCount(userID: userID)
+            }
+        }
+    }
+
+    private func initializeUserCallCount(userID: String) {
+        logger.debug("🆕 Initializing call count for new user: \(userID)")
+        db.collection("Users").document(userID).setData([
+            "CallCount": 0
+        ]) { [weak self] error in
+            if let error = error {
+                self?.logger.error("❌ Error initializing call count: \(error.localizedDescription)")
+            } else {
+                self?.logger.notice("✅ Successfully initialized call count to 0")
+                DispatchQueue.main.async {
+                    self?.callCount = 0
+                }
+            }
+        }
+    }
+
+    func resetCallCount() {
+        guard isUserLoggedIn() else {
+            logger.error("❌ Cannot reset call count: User not logged in")
+            return
+        }
+
+        let userID = Auth.auth().currentUser!.uid
+        logger.debug("🔄 Resetting call count for user: \(userID)")
+
+        db.collection("Users").document(userID).updateData([
+            "CallCount": 0
+        ]) { [weak self] error in
+            if let error = error {
+                self?.logger.error("❌ Error resetting call count: \(error.localizedDescription)")
+            } else {
+                self?.logger.notice("✅ Successfully reset call count to 0")
+                DispatchQueue.main.async {
+                    self?.callCount = 0
                 }
             }
         }
@@ -99,37 +160,38 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 // Logo Section
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     Image("appLogo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 100, height: 100)
-                        .cornerRadius(15)
-                        .shadow(color: Color("3").opacity(0.6), radius: 5, x: -3, y: -3)
-                        .shadow(color: Color(.black).opacity(0.6), radius: 5, x: 3, y: 3)
+                        .frame(width: 80, height: 80)
+                        .cornerRadius(12)
+                        .shadow(color: Color("3").opacity(0.6), radius: 4, x: -2, y: -2)
+                        .shadow(color: Color(.black).opacity(0.6), radius: 4, x: 2, y: 2)
 
                     Text("Snooze Lane")
-                        .font(.title)
+                        .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(Color("2"))
                 }
-                .padding(.top, 20)
+                .padding(.top, 16)
 
                 // Stats Section
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     Text("Trip Statistics")
                         .font(.headline)
                         .foregroundColor(Color("2"))
 
                     Text("\(viewModel.callCount)")
-                        .font(.system(size: 48, weight: .bold))
+                        .font(.system(size: 42, weight: .bold))
                         .foregroundColor(Color("MainOrange"))
 
                     Text("Trips Completed")
                         .font(.subheadline)
                         .foregroundColor(Color("2"))
                 }
-                .padding()
+                .padding(.vertical, 12)
+                .padding(.horizontal)
                 .background(
                     RoundedRectangle(cornerRadius: 15)
                         .fill(Color("4").opacity(0.5))
@@ -254,7 +316,7 @@ struct SettingsView: View {
 
     func clearLocalData() {
         hasCompletedWalkthrough = false
-        viewModel.callCount = 0
+        viewModel.resetCallCount()
     }
 
     func logout() {
