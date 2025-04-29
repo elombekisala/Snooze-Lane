@@ -5,6 +5,7 @@
 //  Created by Elombe.Kisala on 9/9/24.
 //
 
+import MapKit
 import SwiftUI
 
 /// Custom View Modifiers
@@ -13,6 +14,16 @@ extension View {
     func hideNativeTabBar() -> some View {
         self
             .toolbar(.hidden, for: .tabBar)
+    }
+}
+
+struct AlarmButtonModifier: ViewModifier {
+    let isSet: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background(isSet ? Color.green : Color("3"))
+            .cornerRadius(10)
     }
 }
 
@@ -66,8 +77,54 @@ private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
                     .safeAreaInset(edge: .bottom) {
                         Rectangle()
                             .fill(.clear)
-                            .frame(height: 65)  // Increased height to account for tab bar
+                            .frame(height: 0)  // Remove the extra height since we want it above tab bar
                     }
                 })
+    }
+}
+
+struct MapTypeSelector: View {
+    @Binding var mapType: MKMapType
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Button(action: { mapType = .standard }) {
+                Image(systemName: "map")
+                    .font(.system(size: 18))
+                    .foregroundColor(mapType == .standard ? .orange : .gray)
+                    .padding(8)
+                    .background(mapType == .standard ? Color.orange.opacity(0.2) : Color.clear)
+                    .cornerRadius(8)
+            }
+
+            Button(action: { mapType = .satellite }) {
+                Image(systemName: "globe")
+                    .font(.system(size: 18))
+                    .foregroundColor(mapType == .satellite ? .orange : .gray)
+                    .padding(8)
+                    .background(mapType == .satellite ? Color.orange.opacity(0.2) : Color.clear)
+                    .cornerRadius(8)
+            }
+
+            Button(action: { mapType = .hybrid }) {
+                Image(systemName: "map.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(mapType == .hybrid ? .orange : .gray)
+                    .padding(8)
+                    .background(mapType == .hybrid ? Color.orange.opacity(0.2) : Color.clear)
+                    .cornerRadius(8)
+            }
+        }
+        .padding(8)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .opacity(0.95)
+        )
+        .cornerRadius(12)
+        .shadow(radius: 4)
     }
 }
