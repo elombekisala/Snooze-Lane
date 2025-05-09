@@ -164,43 +164,26 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Logo Section
-                VStack(spacing: 12) {
-                    Image("appLogo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 80, height: 80)
-                        .cornerRadius(12)
-                        .shadow(color: Color("3").opacity(0.6), radius: 4, x: -2, y: -2)
-                        .shadow(color: Color(.black).opacity(0.6), radius: 4, x: 2, y: 2)
-
-                    Text("Snooze Lane")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(Color("2"))
-                }
-                .padding(.top, 16)
-
                 // Stats Section
-                VStack(spacing: 6) {
-                    Text("Trip Statistics")
-                        .font(.headline)
-                        .foregroundColor(Color("2"))
-
+                HStack(spacing: 12) {
                     Text("\(viewModel.callCount)")
-                        .font(.system(size: 42, weight: .bold))
+                        .font(.system(size: 32, weight: .bold))
                         .foregroundColor(Color("MainOrange"))
+                        .opacity(1.0)
+                        .shadow(color: Color("MainOrange").opacity(0.3), radius: 2, x: 0, y: 0)
 
                     Text("Trips Completed")
                         .font(.subheadline)
                         .foregroundColor(Color("2"))
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, 8)
                 .padding(.horizontal)
                 .background(
                     RoundedRectangle(cornerRadius: 15)
                         .fill(Color("4").opacity(0.5))
                 )
+                .padding(.horizontal)
+                .padding(.top, 16)  // Add some top padding since we removed the logo
 
                 // Contact Section
                 VStack(spacing: 16) {
