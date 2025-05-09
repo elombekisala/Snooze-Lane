@@ -6,6 +6,11 @@ import SwiftUI
 import UIKit
 import os.log
 
+// Define the notification name
+extension Notification.Name {
+    static let callCountUpdated = Notification.Name("callCountUpdated")
+}
+
 //struct SettingsView: View {
 //    var body: some View {
 //        VStack {
