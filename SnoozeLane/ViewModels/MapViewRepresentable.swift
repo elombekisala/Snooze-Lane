@@ -12,9 +12,6 @@ struct MapViewRepresentable: UIViewRepresentable {
     @Binding var alarmDistance: Double
     @Binding var mapType: MKMapType
 
-    // New state for Look Around
-    @State private var lookAroundScene: MKLookAroundScene?
-
     // EnvironmentObjects to access shared data
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
@@ -59,54 +56,33 @@ struct MapViewRepresentable: UIViewRepresentable {
             uiView.mapType = mapType
         }
 
-        // Clean up existing resources
-        uiView.removeOverlays(uiView.overlays)
-        uiView.removeAnnotations(uiView.annotations)
+        // Update UI elements based on map state
+        updateMapUI(uiView)
 
-        // Reset user tracking if needed
-        if mapState == .noInput {
-            uiView.setUserTrackingMode(.follow, animated: true)
-            userHasInteractedWithMap = false
-        }
-
+        // Update overlays if location is selected
         if let coordinate = locationViewModel.selectedSnoozeLaneLocation?.coordinate {
-            context.coordinator.updateCircleOverlay(
-                withCoordinate: coordinate,
-                radius: alarmDistance)
-            context.coordinator.updateUserToDestinationLine()
-
-            // Add Look Around scene for the selected location
-            Task {
-                await addLookAroundPreview(for: coordinate)
-            }
-        }
-
-        // Update compass and scale bar visibility based on map state
-        uiView.showsCompass = mapState != .noInput
-        uiView.showsScale = mapState != .noInput
-    }
-
-    // New function to handle Look Around scene request
-    private func addLookAroundPreview(for coordinate: CLLocationCoordinate2D) async {
-        let sceneRequest = MKLookAroundSceneRequest(coordinate: coordinate)
-        do {
-            lookAroundScene = try await sceneRequest.scene
-        } catch {
-            print("Error fetching Look Around scene: \(error.localizedDescription)")
+            context.coordinator.updateOverlays(for: coordinate, radius: alarmDistance)
         }
     }
 
-    // Cleanup method for Look Around scene
-    private func cleanupLookAroundScene() {
-        lookAroundScene = nil
+    private func updateMapUI(_ mapView: MKMapView) {
+        // Update tracking mode
+        if mapState == .noInput && !userHasInteractedWithMap {
+            mapView.setUserTrackingMode(.follow, animated: true)
+        }
+
+        // Update UI elements visibility
+        let shouldShowUI = mapState != .noInput
+        mapView.showsCompass = shouldShowUI
+        mapView.showsScale = shouldShowUI
     }
 }
 
 extension MapViewRepresentable {
     class MapCoordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         let parent: MapViewRepresentable
-        var circleOverlay: MKCircle?
-        var userToDestinationLine: MKPolyline?
+        private var circleOverlay: MKCircle?
+        private var userToDestinationLine: MKPolyline?
 
         init(parent: MapViewRepresentable) {
             self.parent = parent
@@ -114,6 +90,9 @@ extension MapViewRepresentable {
 
             NotificationCenter.default.addObserver(
                 self, selector: #selector(handleUpdateCircle(_:)), name: .updateCircle, object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleClearMapOverlays(_:)), name: .clearMapOverlays,
+                object: nil)
         }
 
         deinit {
@@ -122,17 +101,13 @@ extension MapViewRepresentable {
         }
 
         private func cleanup() {
-            if let circle = circleOverlay {
-                parent.mapView.removeOverlay(circle)
-                circleOverlay = nil
-            }
+            clearOverlays()
+        }
 
-            if let line = userToDestinationLine {
-                parent.mapView.removeOverlay(line)
-                userToDestinationLine = nil
-            }
-
-            parent.cleanupLookAroundScene()
+        private func clearOverlays() {
+            parent.mapView.removeOverlays(parent.mapView.overlays)
+            circleOverlay = nil
+            userToDestinationLine = nil
         }
 
         @objc func handleUpdateCircle(_ notification: Notification) {
@@ -140,30 +115,40 @@ extension MapViewRepresentable {
                 let coordinate = userInfo["coordinate"] as? CLLocationCoordinate2D,
                 let radius = userInfo["radius"] as? Double
             {
-                updateCircleOverlay(withCoordinate: coordinate, radius: radius)
+                updateOverlays(for: coordinate, radius: radius)
             }
         }
 
-        func updateCircleOverlay(withCoordinate coordinate: CLLocationCoordinate2D, radius: Double)
-        {
-            // Ensure that the circle overlay is always updated, no matter the map state
+        @objc func handleClearMapOverlays(_ notification: Notification) {
+            print("🗺️ Clearing all map overlays")
+            clearOverlays()
+        }
+
+        func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
+            // Update circle overlay
             if let existingOverlay = circleOverlay {
                 parent.mapView.removeOverlay(existingOverlay)
             }
             let circle = MKCircle(center: coordinate, radius: radius)
             parent.mapView.addOverlay(circle)
             circleOverlay = circle
+
+            // Update user to destination line
+            updateUserToDestinationLine()
         }
 
-        @objc func handleUserInteraction(_ gesture: UIGestureRecognizer) {
-            if gesture.state == .began || gesture.state == .changed || gesture.state == .ended {
-                print("User interaction detected with gesture: \(gesture.state)")
-                if parent.mapState != .noInput {
-                    parent.userHasInteractedWithMap = true
-                    parent.mapView.userTrackingMode = .none
-                    print("User tracking mode set to none due to user interaction.")
-                }
+        private func updateUserToDestinationLine() {
+            if let existingLine = userToDestinationLine {
+                parent.mapView.removeOverlay(existingLine)
             }
+
+            guard let userLocation = parent.locationManager.location?.coordinate,
+                let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
+            else { return }
+
+            let polyline = MKPolyline(coordinates: [userLocation, destination], count: 2)
+            parent.mapView.addOverlay(polyline)
+            userToDestinationLine = polyline
         }
 
         @objc func handleLongPress(gestureRecognizer: UILongPressGestureRecognizer) {
@@ -172,19 +157,20 @@ extension MapViewRepresentable {
             let location = gestureRecognizer.location(in: parent.mapView)
             let coordinate = parent.mapView.convert(location, toCoordinateFrom: parent.mapView)
 
-            // Provide haptic feedback for the long press
+            // Provide haptic feedback
             let feedbackGenerator = UIImpactFeedbackGenerator(style: .heavy)
             feedbackGenerator.impactOccurred(intensity: 100)
 
             // Clear existing annotations and overlays
+            clearOverlays()
             parent.mapView.removeAnnotations(parent.mapView.annotations)
-            parent.mapView.removeOverlays(parent.mapView.overlays)
 
-            // Add new annotation at the pressed location
+            // Add new annotation
             let annotation = MKPointAnnotation()
             annotation.coordinate = coordinate
             parent.mapView.addAnnotation(annotation)
 
+            // Update state and reverse geocode
             parent.mapState = .locationSelected
             parent.locationViewModel.reverseGeocodeLocation(coordinate) { [weak self] address in
                 guard let self = self else { return }
@@ -196,11 +182,9 @@ extension MapViewRepresentable {
                     placemark: MKPlacemark(coordinate: coordinate)
                 )
 
-                // Update circle overlay and user-to-destination line
+                // Update overlays and fit map
                 DispatchQueue.main.async {
-                    self.updateCircleOverlay(
-                        withCoordinate: coordinate, radius: self.parent.alarmDistance)
-                    self.updateUserToDestinationLine()
+                    self.updateOverlays(for: coordinate, radius: self.parent.alarmDistance)
                     self.fitMapToUserAndDestination()
                 }
             }
@@ -262,30 +246,12 @@ extension MapViewRepresentable {
                 let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
             else { return }
 
-            let polyline = MKPolyline(coordinates: [userLocation, destination], count: 2)
-            parent.mapView.removeOverlays(parent.mapView.overlays)  // Remove existing overlays before adding a new one
-            parent.mapView.addOverlay(polyline)
-
-            // Calculate the bounding map rect to fit both locations with some padding
-            let boundingRect = polyline.boundingMapRect
+            let tempPolyline = MKPolyline(coordinates: [userLocation, destination], count: 2)
+            let boundingRect = tempPolyline.boundingMapRect
             let edgePadding = UIEdgeInsets(top: 100, left: 100, bottom: 300, right: 100)
             parent.mapView.setVisibleMapRect(boundingRect, edgePadding: edgePadding, animated: true)
 
             parent.mapView.userTrackingMode = .none
-        }
-
-        func updateUserToDestinationLine() {
-            if let existingLine = userToDestinationLine {
-                parent.mapView.removeOverlay(existingLine)
-            }
-
-            guard let userLocation = parent.locationManager.location?.coordinate,
-                let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
-            else { return }
-
-            let polyline = MKPolyline(coordinates: [userLocation, destination], count: 2)
-            parent.mapView.addOverlay(polyline)
-            userToDestinationLine = polyline
         }
 
         func addAndSelectAnnotation(withCoordinate coordinate: CLLocationCoordinate2D) {
