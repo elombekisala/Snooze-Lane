@@ -152,6 +152,8 @@ extension MapViewRepresentable {
         }
 
         @objc func handleLongPress(gestureRecognizer: UILongPressGestureRecognizer) {
+            // Prevent selecting a new destination while trip is in progress
+            if parent.mapState == .tripInProgress { return }
             if gestureRecognizer.state != .began { return }
 
             let location = gestureRecognizer.location(in: parent.mapView)
