@@ -5,29 +5,27 @@
 //  Created by Elombe Kisala on 3/24/24.
 //
 
-import Foundation
-import Combine
-import CoreLocation
 import AVFoundation
 import AudioToolbox
-import UserNotifications
+import Combine
+import CoreLocation
 import Firebase
-import FirebaseFunctions
 import FirebaseAppCheck
+import FirebaseFunctions
+import Foundation
+import UserNotifications
 
 final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
-    
+
     private let locationManager = LocationManager.shared
     private let locationViewModel: LocationSearchViewModel
     private let twilioService = TwilioService()
-    
+
     private var cancellables = Set<AnyCancellable>()
     var destination: CLLocation?
-    
-    @Published private var callMade: Bool = false
-    
+
+    @Published private(set) var callMade: Bool = false
     @Published var hasReachedDestination = false
-    
     @Published var selectedSound: Sound?
     @Published var currentLocation: CLLocation?
     @Published var initialLocation: CLLocation?
@@ -38,49 +36,54 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
     @Published var distance: Double = 0.0
     @Published var alarmDistanceThreshold: Double = 1609.34
     @Published var tripCompleted: Bool = false
-    
+
     private var callInProgress = false
-    
+    private var notificationAuthorized = false
+
     init(locationViewModel: LocationSearchViewModel) {
         self.locationViewModel = locationViewModel
-        self.alarmDistanceThreshold = 482.81 // Default to 0.3 miles if not set
-        
+        self.alarmDistanceThreshold = 482.81  // Default to 0.3 miles if not set
+
         super.init()
-        
+
         self.setupLocationUpdates()
         self.authorizeNotification()
         print("Initial status of callMade: \(callMade)")
     }
-    
+
     // MARK: Requesting Notification Access
     func authorizeNotification() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.sound, .alert, .badge]) { granted, error in
+        UNUserNotificationCenter.current().requestAuthorization(options: [.sound, .alert, .badge]) {
+            [weak self] granted, error in
             if let error = error {
                 print("Error requesting notification authorization: \(error.localizedDescription)")
             } else {
                 print("Notification authorization granted: \(granted)")
+                self?.notificationAuthorized = granted
             }
         }
-        
+
         // Assign delegate
         UNUserNotificationCenter.current().delegate = self
     }
-    
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.sound,.banner, .list, .badge])
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) ->
+            Void
+    ) {
+        completionHandler([.sound, .banner, .list, .badge])
         print("Notification will present: \(notification.request.content.title)")
     }
-    
-    
-    
+
     func getDestination() -> CLLocation? {
         return destination
     }
-    
+
     func setDestination(_ destination: CLLocation) {
         self.destination = destination
     }
-    
+
     private func setupLocationUpdates() {
         locationManager.$location.sink { [weak self] location in
             guard let self = self, let location = location else { return }
@@ -89,76 +92,95 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         }
         .store(in: &cancellables)
     }
-    
+
     private func updateDistance(location: CLLocation) {
         guard isStarted, let destination = destination else { return }
-        
+
         distance = location.distance(from: destination)
         updateProgress()
     }
-    
+
     func startTrip() {
-        //        guard let destination = destination else { return }
-        
+        print("🚀 START TRIP FUNCTION CALLED.")
         initialLocation = currentLocation
         isStarted = true
         locationManager.startUpdatingLocation()
     }
-    
+
     private func updateProgress() {
-        guard let currentLocation = currentLocation, let destination = destination, !hasReachedDestination else { return }
-        
+        guard let currentLocation = currentLocation, let destination = destination,
+            !hasReachedDestination
+        else {
+            print(
+                "⚠️ Update progress guard failed - currentLocation: \(currentLocation != nil), destination: \(destination != nil), hasReachedDestination: \(hasReachedDestination)"
+            )
+            return
+        }
+
         let currentDistance = currentLocation.distance(from: destination)
         let distanceToThreshold = max(0, currentDistance - alarmDistanceThreshold)
-        
+
+        print("📍 Current distance: \(currentDistance)m, Threshold: \(alarmDistanceThreshold)m")
+
         // Progress is calculated based on the distance to the threshold
-        let totalThresholdDistance = max(currentLocation.distance(from: destination), alarmDistanceThreshold)
+        let totalThresholdDistance = max(
+            currentLocation.distance(from: destination), alarmDistanceThreshold)
         progress = 1 - (distanceToThreshold / totalThresholdDistance)
-        
+
         // Ensure the progress is within the range of 0 to 1
         progress = max(0, min(progress, 1))
-        
+
         // Avoid triggering again if destination is reached
         if currentDistance <= alarmDistanceThreshold && !hasReachedDestination {
+            print(
+                "🎯 Distance threshold reached! Current: \(currentDistance)m, Threshold: \(alarmDistanceThreshold)m"
+            )
             hasReachedDestination = true
             print("Reached destination, triggering notification and call")
-            
+
             // Trigger notification and call
             triggerNotification()
-            
+
             if !callMade {
                 triggerCall()
             }
-            
-            // Stop the trip and reset progress
-            stopTrip()
-            resetTripProgress()
-            
-            // Update UI state
+
+            // Stop location updates and clear map
+            locationManager.stopUpdatingLocation()
+            isStarted = false
+
+            // Clear map overlays
+            NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+
+            // Update UI state to show completion
             DispatchQueue.main.async {
                 self.tripCompleted = true
             }
         }
     }
-    
+
     func triggerNotification() {
+        guard notificationAuthorized else {
+            print("⚠️ Notifications not authorized")
+            return
+        }
+
         let content = UNMutableNotificationContent()
         content.title = "Wake up! You're almost there!"
-        content.body = "You're approaching your destination📍"
+        content.body = "You're approaching your stop📍"
         content.sound = UNNotificationSound.default
-        
+
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
-        
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString, content: content, trigger: trigger)
+
         // Check if the app is in the background or foreground
         DispatchQueue.main.async {
             let state = UIApplication.shared.applicationState
             if state == .active {
-                // Handle foreground notification (e.g., show an alert or play a sound)
                 print("App is in foreground, showing alert instead of notification.")
                 self.showForegroundAlert(content: content)
             } else {
-                // Add the notification for background state
                 UNUserNotificationCenter.current().add(request) { error in
                     if let error = error {
                         print("Error scheduling notification: \(error.localizedDescription)")
@@ -169,29 +191,30 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             }
         }
     }
-    
+
     private func showForegroundAlert(content: UNMutableNotificationContent) {
-        let alert = UIAlertController(title: content.title, message: content.body, preferredStyle: .alert)
+        let alert = UIAlertController(
+            title: content.title, message: content.body, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
         if let topController = UIApplication.shared.keyWindow?.rootViewController {
             topController.present(alert, animated: true, completion: nil)
         }
     }
-    
+
     func triggerCall(retryCount: Int = 0) {
         guard !callInProgress else {
             print("Call already in progress")
             return
         }
-        
+
         callInProgress = true
-        
+
         let functions = Functions.functions()
         functions.httpsCallable("makeCallOnTrigger").call { result, error in
             self.callInProgress = false
             if let error = error {
                 print("Error calling function: \(error.localizedDescription)")
-                if retryCount < 3 { // Retry logic with up to 3 retries
+                if retryCount < 3 {  // Retry logic with up to 3 retries
                     DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
                         self.triggerCall(retryCount: retryCount + 1)
                     }
@@ -203,11 +226,11 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             }
         }
     }
-    
+
     func incrementCallCount() {
         guard let userID = Auth.auth().currentUser?.uid else { return }
         let userRef = Firestore.firestore().collection("Users").document(userID)
-        
+
         Firestore.firestore().runTransaction({ (transaction, errorPointer) -> Any? in
             let userDocument: DocumentSnapshot
             do {
@@ -216,13 +239,18 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                 errorPointer?.pointee = fetchError
                 return nil
             }
-            
+
             guard let oldCallCount = userDocument.data()?["CallCount"] as? Int else {
-                let error = NSError(domain: "AppErrorDomain", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to retrieve call count from snapshot \(userDocument)"])
+                let error = NSError(
+                    domain: "AppErrorDomain", code: 0,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Unable to retrieve call count from snapshot \(userDocument)"
+                    ])
                 errorPointer?.pointee = error
                 return nil
             }
-            
+
             transaction.updateData(["CallCount": oldCallCount + 1], forDocument: userRef)
             return nil
         }) { (object, error) in
@@ -233,32 +261,40 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             }
         }
     }
-    
+
     func stopTrip() {
-        
         isStarted = false
-        isFinished = false
-        self.callMade = false
-        resetTripProgress()
+        callMade = false
         locationManager.stopUpdatingLocation()
+        resetTripProgress()
+        // Clear map overlays
+        NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+        print("STOP TRIP FUNCTION CALLED.")
     }
-    
+
     func resetTripProgress() {
         hasReachedDestination = false
         progress = 0
         distance = 0
-        tripCompleted = false
-        callMade = false
         callInProgress = false
         currentLocation = nil
         destination = nil
         initialLocation = nil
-        print("Trip progress reset.")
+        tripCompleted = false
+        print("RESET TRIP PROGRESS FUNCTION CALLED.")
     }
-    
+
+    func startNewTrip() {
+        // Reset everything for a fresh start
+        resetTripProgress()
+        // Clear map overlays
+        NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+    }
+
     private func cancelDestinationNotification() {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["BannerNotification", "AlertNotification"])
+        center.removePendingNotificationRequests(withIdentifiers: [
+            "BannerNotification", "AlertNotification",
+        ])
     }
 }
-

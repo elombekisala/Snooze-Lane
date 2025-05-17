@@ -127,19 +127,18 @@ struct TripProgressView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
                     Button {
+                        print("🔘 Button pressed - Current tripCompleted: \(tripCompleted)")
                         if tripCompleted {
-                            // Reset everything for a new trip
-                            progressViewModel.resetTripProgress()
-                            tripCompleted = false
+                            print("🔄 STARTING NEW TRIP")
+                            progressViewModel.startNewTrip()
                             mapState = .noInput
                         } else {
-                            // Stop the trip and reset progress
+                            print("🔄 TRIP STATE CHANGE: RESETTING TRIP")
+                            print("📍 MAP STATE: CHANGING TO NO INPUT")
                             progressViewModel.stopTrip()
-                            progressViewModel.resetTripProgress()
-                            UNUserNotificationCenter.current()
-                                .removeAllPendingNotificationRequests()
-                            mapState = .polylineAdded
+                            mapState = .noInput
                         }
+                        print("✅ TRIP RESET COMPLETE")
                     } label: {
                         HStack(spacing: 12) {
                             Spacer()
@@ -147,12 +146,12 @@ struct TripProgressView: View {
                             Text(tripCompleted ? "START NEW TRIP" : "CANCEL TRIP")
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
-                                .opacity(0.6)
+                                .opacity(tripCompleted ? 1.0 : 0.6)
 
                             Spacer()
                         }
                         .frame(height: 50)
-                        .background(Color("6"))
+                        .background(tripCompleted ? Color.green : Color("6"))
                         .cornerRadius(10)
                         .padding(.horizontal)
                         .padding(.bottom, 10)
@@ -167,9 +166,15 @@ struct TripProgressView: View {
             displayedDistance = formattedDistance
         }
         .onChange(of: progressViewModel.hasReachedDestination) { reachedDestination in
+            print("🔄 hasReachedDestination changed to: \(reachedDestination)")
             if reachedDestination {
+                print("🎯 TRIP COMPLETED: DESTINATION REACHED")
                 progressViewModel.triggerNotification()
                 tripCompleted = true
+                print("🔔 NOTIFICATION TRIGGERED")
+                // Remove the automatic mapState change
+                // Clear map overlays when trip is completed
+                NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
             }
         }
     }
