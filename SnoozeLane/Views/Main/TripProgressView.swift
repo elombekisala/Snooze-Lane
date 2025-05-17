@@ -34,13 +34,25 @@ struct TripProgressView: View {
     var body: some View {
 
         VStack {
-            Text("Rest easy, we'll wake you when you're close😴")
-                .font(.title2.bold())
-                .foregroundColor(Color("1"))
-                .padding(.horizontal)
+            if tripCompleted {
+                VStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.green)
+                    Text("You've Arrived!")
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+                }
                 .padding(.top, 16)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .multilineTextAlignment(.center)
+            } else {
+                Text("Rest easy, we'll wake you when you're close😴")
+                    .font(.title2.bold())
+                    .foregroundColor(Color("1"))
+                    .padding(.horizontal)
+                    .padding(.top, 16)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+            }
 
             GeometryReader { proxy in
                 VStack(spacing: 15) {
@@ -99,18 +111,7 @@ struct TripProgressView: View {
                         }
 
                         // Display remaining distance in miles or success message
-                        if tripCompleted {
-                            VStack(spacing: 8) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.green)
-
-                                Text("You've Arrived!")
-                                    .font(.system(size: 24, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
-                            .rotationEffect(.init(degrees: 90))
-                        } else {
+                        if !tripCompleted {
                             Text(
                                 "\(String(format: "%.2f", ((progressViewModel.currentLocation?.distance(from: progressViewModel.destination ?? CLLocation()) ?? 0) - progressViewModel.alarmDistanceThreshold) / 1609.34)) mi"
                             )
@@ -131,6 +132,7 @@ struct TripProgressView: View {
                         if tripCompleted {
                             print("🔄 STARTING NEW TRIP")
                             progressViewModel.startNewTrip()
+                            locationViewModel.selectedSnoozeLaneLocation = nil  // Clear destination marker and overlays
                             mapState = .noInput
                         } else {
                             print("🔄 TRIP STATE CHANGE: RESETTING TRIP")
