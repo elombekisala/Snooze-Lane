@@ -1,6 +1,11 @@
 import MapKit
 import SwiftUI
 
+// Add this extension at the top or in your notification constants file if not present
+extension Notification.Name {
+    static let centerOnUserLocation = Notification.Name("centerOnUserLocation")
+}
+
 struct MapViewRepresentable: UIViewRepresentable {
     let mapView = MKMapView()
 
@@ -11,13 +16,14 @@ struct MapViewRepresentable: UIViewRepresentable {
     @Binding var userHasInteractedWithMap: Bool
     @Binding var alarmDistance: Double
     @Binding var mapType: MKMapType
+    @Binding var isFollowingUser: Bool
 
     // EnvironmentObjects to access shared data
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
 
     func makeCoordinator() -> MapCoordinator {
-        return MapCoordinator(parent: self)
+        return MapCoordinator(parent: self, isFollowingUser: $isFollowingUser)
     }
 
     func makeUIView(context: Context) -> MKMapView {
@@ -36,6 +42,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         mapView.userTrackingMode = .follow
         mapView.showsUserLocation = true
         mapView.tintColor = .orange
+
+        // Ensure isFollowingUser is true on initial load
+        context.coordinator.isFollowingUser.wrappedValue = true
 
         // Add compass and scale bar
         mapView.showsCompass = true
@@ -83,15 +92,20 @@ extension MapViewRepresentable {
         let parent: MapViewRepresentable
         private var circleOverlay: MKCircle?
         private var userToDestinationLine: MKPolyline?
+        var isFollowingUser: Binding<Bool>
 
-        init(parent: MapViewRepresentable) {
+        init(parent: MapViewRepresentable, isFollowingUser: Binding<Bool>) {
             self.parent = parent
+            self.isFollowingUser = isFollowingUser
             super.init()
 
             NotificationCenter.default.addObserver(
                 self, selector: #selector(handleUpdateCircle(_:)), name: .updateCircle, object: nil)
             NotificationCenter.default.addObserver(
                 self, selector: #selector(handleClearMapOverlays(_:)), name: .clearMapOverlays,
+                object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(centerOnUserLocation), name: .centerOnUserLocation,
                 object: nil)
         }
 
@@ -122,6 +136,11 @@ extension MapViewRepresentable {
         @objc func handleClearMapOverlays(_ notification: Notification) {
             print("🗺️ Clearing all map overlays")
             clearOverlays()
+        }
+
+        @objc func centerOnUserLocation() {
+            parent.mapView.setUserTrackingMode(.follow, animated: true)
+            isFollowingUser.wrappedValue = true
         }
 
         func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
@@ -283,6 +302,10 @@ extension MapViewRepresentable {
         // MARK: - MapCoordinator
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             parent.userHasInteractedWithMap = true
+            // If not following user, set isFollowingUser to false
+            if mapView.userTrackingMode != .follow {
+                isFollowingUser.wrappedValue = false
+            }
         }
 
         // Handle map feature selection through standard annotation selection
