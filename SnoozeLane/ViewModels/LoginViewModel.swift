@@ -1,4 +1,5 @@
 import Firebase
+import FirebaseFirestore
 //
 //  LoginViewModel.swift
 //  SnoozeLane
@@ -6,6 +7,8 @@ import Firebase
 //  Created by Elombe Kisala on 3/24/24.
 //
 import SwiftUI
+
+typealias FirestoreFieldValue = FirebaseFirestore.FieldValue
 
 class LoginViewModel: ObservableObject {
 
@@ -88,6 +91,17 @@ class LoginViewModel: ObservableObject {
                     self.status = true
                     self.loading = false
                 }
+                // Firestore: Link phone number to UID
+                if let user = Auth.auth().currentUser {
+                    let db = Firestore.firestore()
+                    let userRef = db.collection("Users").document(user.uid)
+                    let phoneNumber = user.phoneNumber ?? self.fullPhoneNumber
+                    userRef.setData(
+                        [
+                            "phoneNumber": phoneNumber,
+                            "CallCount": 0,
+                        ], merge: true)
+                }
             } else {
                 self.errorMsg = "Invalid verification code. Use: \(testVerificationCode)"
                 withAnimation {
@@ -111,6 +125,17 @@ class LoginViewModel: ObservableObject {
                     return
                 }
                 withAnimation { self.status = true }
+                // Firestore: Link phone number to UID
+                if let user = Auth.auth().currentUser {
+                    let db = Firestore.firestore()
+                    let userRef = db.collection("Users").document(user.uid)
+                    let phoneNumber = user.phoneNumber ?? self.fullPhoneNumber
+                    userRef.setData(
+                        [
+                            "phoneNumber": phoneNumber,
+                            "CallCount": 0,
+                        ], merge: true)
+                }
             }
         #endif
     }
