@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import MapKit
+import SwiftUI
 
 // Define custom notification names for better code management
 extension Notification.Name {
@@ -16,4 +16,5 @@ extension Notification.Name {
     static let locationSelected = Notification.Name("locationSelected")
     static let alarmDistanceChanged = Notification.Name("alarmDistanceChanged")
     static let didClearMapElements = Notification.Name("didClearMapElements")
+    static let clearMapOverlays = Notification.Name("clearMapOverlays")
 }
