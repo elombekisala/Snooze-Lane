@@ -38,9 +38,11 @@ struct Verification: View {
                     }
                     .padding()
 
-                    Text("Code sent to +\(loginViewModel.getCountryCode())\(loginViewModel.phNo)")
-                        .foregroundColor(Color("2"))
-                        .padding(.bottom)
+                    Text(
+                        "Code sent to +\(loginViewModel.selectedCountryCode.isEmpty ? loginViewModel.getCountryCode() : loginViewModel.selectedCountryCode)\(loginViewModel.phNo)"
+                    )
+                    .foregroundColor(Color("2"))
+                    .padding(.bottom)
 
                     #if targetEnvironment(simulator)
                         Text("Using simulator test code")

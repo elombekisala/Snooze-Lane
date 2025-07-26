@@ -3,7 +3,6 @@ import MapKit
 import SwiftUI
 
 struct Home: View {
-    @State private var activeTab: MenuTabs = .search
     @State private var mapState: MapViewState = .noInput
     @State private var alarmDistance: Double = 482.81
     @State private var localSheetHeight: CGFloat = 110
@@ -26,27 +25,34 @@ struct Home: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            BannerAd(unitID: "ca-app-pub-2382471766301173/6160219590")
-                .frame(height: 50)
-                .padding(.top)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                BannerAd(unitID: "ca-app-pub-2382471766301173/6160219590")
+                    .frame(height: 50)
+                    .padding(.top)
 
-            TabView(selection: $activeTab) {
-                NavigationStack {
-                    MapView(mapState: $mapState, alarmDistance: $alarmDistance)
-                        .padding(.bottom, windowSharedModel.contentPadding)
-                }
-                .tag(MenuTabs.search)
-                .hideNativeTabBar()
-
-                NavigationStack {
-                    SettingsView()
-                        .padding(.bottom, windowSharedModel.contentPadding)
-                }
-                .tag(MenuTabs.settings)
-                .hideNativeTabBar()
+                // Main content area - always show MapView
+                MapView(mapState: $mapState, alarmDistance: $alarmDistance)
+                    .padding(.bottom, windowSharedModel.contentPadding)
+                    .onChange(of: mapState) { oldValue, newValue in
+                        windowSharedModel.updateSheetHeight(for: newValue)
+                    }
+                    .onAppear {
+                        guard sceneDelegate.tabWindow == nil else { return }
+                        sceneDelegate.addTabBar(windowSharedModel)
+                    }
             }
-            .tabSheet(initialHeight: windowSharedModel.sheetHeight, sheetCornerRadius: 15) {
+
+            // Custom Bottom Sheet
+            VStack(spacing: 0) {
+                // Drag indicator
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.gray.opacity(0.5))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                // Sheet content
                 NavigationStack {
                     ScrollView {
                         VStack(spacing: 15) {
@@ -68,14 +74,27 @@ struct Home: View {
                         }
                     })
                 }
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .opacity(0.95)
+                )
+                .cornerRadius(15, corners: [.topLeft, .topRight])
             }
-            .onChange(of: mapState) { oldValue, newValue in
-                windowSharedModel.updateSheetHeight(for: newValue)
-            }
-            .onAppear {
-                guard sceneDelegate.tabWindow == nil else { return }
-                sceneDelegate.addTabBar(windowSharedModel)
-            }
+            .frame(height: windowSharedModel.sheetHeight)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .opacity(0.95)
+            )
+            .cornerRadius(15, corners: [.topLeft, .topRight])
+            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: -5)
         }
     }
 
@@ -118,6 +137,27 @@ struct Home: View {
                 .environmentObject(tripProgressViewModel)
             }
         }
+    }
+}
+
+// Extension for rounded corners
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
     }
 }
 
