@@ -15,10 +15,10 @@ struct MapView: View {
     @State private var isSearching: Bool = false
     @State private var showProgressView: Bool = true
 
-    // New sheet state management
-    @State private var sheetOffset: CGFloat = 0
-    @State private var sheetHeight: CGFloat = 120
-    @State private var isDragging: Bool = false
+    // Modal state management
+    @State private var showModal: Bool = false
+    @State private var modalOffset: CGFloat = 0
+    @State private var isDraggingModal: Bool = false
     @State private var lastDragOffset: CGFloat = 0
 
     @Environment(\.dismiss) var dismiss
@@ -34,6 +34,7 @@ struct MapView: View {
 
     var body: some View {
         ZStack {
+            // Map View
             MapViewRepresentable(
                 selectedMapItem: $selectedMapItem,
                 showingDetails: $showDetails,
@@ -43,453 +44,145 @@ struct MapView: View {
                 mapType: $mapType,
                 isFollowingUser: $isFollowingUser
             )
-            .ignoresSafeArea(edges: .bottom)
+            .ignoresSafeArea()
 
-            // Top left: Re-center button
+            // Top Controls
             VStack {
                 HStack {
+                    // Location Button
                     Button(action: {
-                        NotificationCenter.default.post(name: .centerOnUserLocation, object: nil)
+                        locationViewModel.centerOnUserLocation()
                     }) {
                         Image(systemName: "location.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(isFollowingUser ? .gray : .orange)
-                            .padding(16)
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]
-                                    ),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                                .opacity(0.95)
-                            )
-                            .cornerRadius(12)
-                            .shadow(radius: 4)
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .frame(width: 50, height: 50)
+                            .background(Color.black.opacity(0.7))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
-                    .padding(.leading, 16)
-                    .padding(.top, 16)
+                    .padding(.leading, 20)
+
                     Spacer()
-                    // Map type selector (top right)
-                    MapTypeSelector(mapType: $mapType)
-                        .padding(.trailing, 16)
-                        .padding(.top, 16)
+
+                    // Map Type Button
+                    Button(action: {
+                        mapType = mapType == .standard ? .hybrid : .standard
+                    }) {
+                        Image(systemName: mapType == .standard ? "map" : "map.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .frame(width: 50, height: 50)
+                            .background(Color.black.opacity(0.7))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .padding(.trailing, 20)
                 }
+                .padding(.top, 60)
+
                 Spacer()
             }
 
-            // Floating Cancel Button for Trip in Progress
-            if mapState == .tripInProgress {
-                VStack {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            // Complete app reset - stop trip progress
-                            tripProgressViewModel.stopTrip()
-
-                            // Clear all map data and reset states
-                            mapState = .noInput
-                            locationViewModel.clearMapElements()
-
-                            // Reset all UI states to initial app state
-                            showProgressView = true
-                            sheetHeight = 120
-                            showSearchOverlay = false
-                            isSearching = false
-                            locationViewModel.queryFragment = ""
-
-                            // Center map on user location
-                            locationViewModel.centerOnUserLocation()
-
-                            // Log the reset operation instead of using print
-                            #if DEBUG
-                                print(
-                                    "🔄 COMPLETE APP RESET: All states cleared, map centered on user"
-                                )
-                            #endif
-                        }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 16))
-                            Text("Cancel Trip")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.red.opacity(0.8),
-                                    Color.red.opacity(0.6),
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .cornerRadius(25)
-                        .shadow(radius: 4)
-                    }
-                    .padding(.top, 80)  // Below ad banner
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-            }
-
-            // Improved Dynamic Bottom Sheet
-            if showSearchOverlay {
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    // Draggable Sheet
-                    VStack(spacing: 0) {
-                        // Drag Handle
-                        RoundedRectangle(cornerRadius: 2.5)
-                            .fill(Color.gray.opacity(0.6))
-                            .frame(width: 36, height: 4)
-                            .padding(.top, 8)
-                            .padding(.bottom, 16)
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        isDragging = true
-                                        let newOffset = value.translation.height + lastDragOffset
-                                        // Allow dragging down much further - almost completely off screen
-                                        sheetOffset = max(-sheetHeight + 20, min(0, newOffset))
-                                    }
-                                    .onEnded { value in
-                                        isDragging = false
-                                        let velocity =
-                                            value.predictedEndTranslation.height
-                                            - value.translation.height
-
-                                        withAnimation(.easeOut(duration: 0.3)) {
-                                            if velocity > 500 || sheetOffset > -sheetHeight / 2 {
-                                                // Snap to bottom (minimal view - just 20px showing)
-                                                sheetOffset = -sheetHeight + 20
-                                            } else {
-                                                // Snap to top (full view)
-                                                sheetOffset = 0
-                                            }
-                                        }
-                                        lastDragOffset = sheetOffset
-                                    }
-                            )
-
-                        // Search Header and Input - Only show when not in trip progress with visible progress view
-                        if !(mapState == .tripInProgress && showProgressView) {
-                            HStack {
-                                Button("Cancel") {
-                                    dismissSearchOverlay()
-                                }
-                                .foregroundColor(.blue)
-                                .font(.system(size: 16, weight: .medium))
-                                .padding(.leading, 20)
-
-                                Spacer()
-
-                                Text("Search Destination")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
-
-                                Spacer()
-
-                                // Invisible button for balance
-                                Button("Cancel") {
-                                    dismissSearchOverlay()
-                                }
-                                .foregroundColor(.clear)
-                                .padding(.trailing, 20)
-                            }
-                            .padding(.bottom, 16)
-
-                            // Search Input
-                            HStack {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.gray)
-                                    .font(.system(size: 16))
-                                    .padding(.leading, 16)
-
-                                TextField("Where To?", text: $locationViewModel.queryFragment)
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 16))
-                                    .onChange(of: locationViewModel.queryFragment) { _, newValue in
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            isSearching = !newValue.isEmpty
-                                            updateSheetHeight()
-                                        }
-                                    }
-
-                                if !locationViewModel.queryFragment.isEmpty {
-                                    Button(action: {
-                                        locationViewModel.queryFragment = ""
-                                        isSearching = false
-                                        updateSheetHeight()
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.gray)
-                                            .font(.system(size: 16))
-                                    }
-                                    .padding(.trailing, 16)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .background(Color(.systemGray6).opacity(0.9))
-                            .cornerRadius(12)
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 16)
-                        }
-
-                        // Content based on state
-                        if isSearching || mapState == .locationSelected
-                            || mapState == .polylineAdded
-                            || mapState == .settingAlarmRadius || mapState == .tripInProgress
-                        {
-                            ScrollView(showsIndicators: false) {
-                                VStack(spacing: 0) {
-                                    if isSearching && !locationViewModel.results.isEmpty {
-                                        // Search Results
-                                        LazyVStack(spacing: 0) {
-                                            ForEach(locationViewModel.results, id: \.self) {
-                                                result in
-                                                LocationSearchResultsCell(
-                                                    title: result.title,
-                                                    subtitle: result.subtitle
-                                                )
-                                                .onTapGesture {
-                                                    locationViewModel.selectLocation(result)
-                                                    mapState = .locationSelected
-                                                    isSearching = false
-                                                    updateSheetHeight()
-                                                }
-                                            }
-                                        }
-                                        .padding(.top, 8)
-                                    } else if mapState == .locationSelected {
-                                        // Trip Setup View
-                                        TripSetupView(
-                                            mapState: $mapState,
-                                            alarmDistance: $alarmDistance
-                                        )
-                                        .onChange(of: mapState) { _, newState in
-                                            if newState == .settingAlarmRadius {
-                                                updateSheetHeight()
-                                            }
-                                        }
-                                    } else if mapState == .settingAlarmRadius {
-                                        // Alarm Settings View
-                                        AlarmSettingsView(
-                                            isPresented: .constant(true),
-                                            alarmDistance: $alarmDistance,
-                                            onConfirm: {
-                                                mapState = .tripInProgress
-                                                updateSheetHeight()
-                                            }
-                                        )
-                                    } else if mapState == .tripInProgress && showProgressView {
-                                        // Trip Progress View with Toggle
-                                        VStack(spacing: 0) {
-                                            HStack {
-                                                Spacer()
-                                                Button(action: {
-                                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                                        showProgressView.toggle()
-                                                        updateSheetHeight()
-                                                    }
-                                                }) {
-                                                    HStack(spacing: 4) {
-                                                        Image(systemName: "eye.slash")
-                                                            .font(.system(size: 14))
-                                                        Text("Hide")
-                                                            .font(
-                                                                .system(size: 14, weight: .medium))
-                                                    }
-                                                    .foregroundColor(.gray)
-                                                    .padding(.horizontal, 12)
-                                                    .padding(.vertical, 6)
-                                                    .background(Color.white.opacity(0.2))
-                                                    .cornerRadius(12)
-                                                }
-                                                .padding(.trailing, 20)
-                                                .padding(.top, 8)
-                                            }
-
-                                            TripProgressView(
-                                                mapState: $mapState,
-                                                distance: locationViewModel.distance ?? 0,
-                                                isActive: .constant(true)
-                                            )
-                                        }
-                                    } else if mapState == .tripInProgress && !showProgressView {
-                                        // Hidden Progress View - Just the toggle button
-                                        VStack(spacing: 0) {
-                                            HStack {
-                                                Spacer()
-                                                Button(action: {
-                                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                                        showProgressView.toggle()
-                                                        updateSheetHeight()
-                                                    }
-                                                }) {
-                                                    HStack(spacing: 4) {
-                                                        Image(systemName: "eye")
-                                                            .font(.system(size: 14))
-                                                        Text("Show")
-                                                            .font(
-                                                                .system(size: 14, weight: .medium))
-                                                    }
-                                                    .foregroundColor(.gray)
-                                                    .padding(.horizontal, 12)
-                                                    .padding(.vertical, 6)
-                                                    .background(Color.white.opacity(0.2))
-                                                    .cornerRadius(12)
-                                                }
-                                                .padding(.trailing, 20)
-                                                .padding(.top, 8)
-                                            }
-                                            Spacer()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.black.opacity(0.9),
-                                Color.black.opacity(0.85),
-                            ]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .cornerRadius(20, corners: [.topLeft, .topRight])
-                    .offset(y: sheetOffset)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .ignoresSafeArea(edges: .bottom)
-                }
-                .transition(.opacity)
-                .zIndex(1000)
-            }
-
-            // Bottom right: Search and Settings buttons
-            VStack(spacing: 12) {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showSearchOverlay.toggle()
-                        if showSearchOverlay {
-                            sheetHeight = 120
-                            sheetOffset = -sheetHeight + 20  // Start minimized
-                            isSearching = false
-                        }
-                    }
-                }) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 18))
-                        .foregroundColor(.gray)
-                        .padding(16)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            .opacity(0.95)
-                        )
-                        .cornerRadius(12)
-                        .shadow(radius: 4)
-                }
-                Button(action: {
-                    showSettings.toggle()
-                }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.gray)
-                        .padding(16)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            .opacity(0.95)
-                        )
-                        .cornerRadius(12)
-                        .shadow(radius: 4)
-                }
-            }
-            .padding(.trailing, 20)
-            .padding(.bottom, 32)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-
-            .alert(isPresented: $showErrorAlert) {
-                Alert(
-                    title: Text("Error"),
-                    message: Text("Failed to retrieve address for selected location."),
-                    dismissButton: .default(Text("OK"))
+            // Modal View
+            if showModal {
+                ModalView(
+                    locationViewModel: locationViewModel,
+                    tripProgressViewModel: tripProgressViewModel,
+                    mapState: $mapState,
+                    showModal: $showModal,
+                    modalOffset: $modalOffset,
+                    isDraggingModal: $isDraggingModal,
+                    lastDragOffset: $lastDragOffset
                 )
+                .ignoresSafeArea(.all, edges: .bottom)
             }
         }
-        .sheet(isPresented: $showSettings) {
-            NavigationStack {
-                SettingsView()
-                    .navigationTitle("Settings")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Done") {
-                                showSettings = false
-                            }
-                        }
-                    }
-            }
-        }
-        .preferredColorScheme(.dark)
         .onAppear {
-            // Initial setup: ensure the map starts in follow mode
-            locationManager.userHasInteractedWithMap = false
+            // Show modal by default
+            showModal = true
         }
-    }
-
-    private func dismissSearchOverlay() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            showSearchOverlay = false
-            sheetHeight = 0
-            sheetOffset = 0
-            isSearching = false
-            locationViewModel.queryFragment = ""
-            mapState = .noInput
-            locationViewModel.clearMapElements()
-        }
-    }
-
-    private func updateSheetHeight() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            switch mapState {
-            case .noInput:
-                sheetHeight = 120
-            case .locationSelected:
-                sheetHeight = 400
-            case .settingAlarmRadius:
-                sheetHeight = 500
-            case .tripInProgress:
-                sheetHeight = showProgressView ? 500 : 120
-            default:
-                sheetHeight = 120
-            }
-
-            // Update offset to match new height
-            if sheetOffset < -sheetHeight + 20 {
-                sheetOffset = -sheetHeight + 20
-            }
+        .onReceive(NotificationCenter.default.publisher(for: .locationSelected)) { _ in
+            // Show modal when location is selected
+            showModal = true
         }
     }
 }
 
-// Use existing RoundedCorners for top corners only
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorners(topLeft: radius, topRight: radius))
+struct ModalView: View {
+    @ObservedObject var locationViewModel: LocationSearchViewModel
+    @ObservedObject var tripProgressViewModel: TripProgressViewModel
+    @Binding var mapState: MapViewState
+    @Binding var showModal: Bool
+    @Binding var modalOffset: CGFloat
+    @Binding var isDraggingModal: Bool
+    @Binding var lastDragOffset: CGFloat
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                Spacer()
+
+                // Modal Content
+                VStack(spacing: 0) {
+                    // Drag Handle
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(Color.gray.opacity(0.5))
+                        .frame(width: 36, height: 5)
+                        .padding(.top, 8)
+                        .padding(.bottom, 16)
+
+                    // Content based on state
+                    if locationViewModel.selectedSnoozeLaneLocation != nil {
+                        // Trip Setup View
+                        TripSetupView(
+                            mapState: $mapState,
+                            alarmDistance: .constant(100.0)
+                        )
+                        .environmentObject(locationViewModel)
+                        .environmentObject(tripProgressViewModel)
+                                            } else if tripProgressViewModel.isStarted {
+                            // Trip Progress View
+                            TripProgressView(
+                                mapState: $mapState,
+                                distance: 0.0,
+                                isActive: .constant(true)
+                            )
+                            .environmentObject(tripProgressViewModel)
+                                                                } else {
+                        // Location Search View
+                        LocationSearchView(
+                            mapState: $mapState,
+                            locationViewModel: locationViewModel
+                        )
+                }
+                }
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .offset(y: modalOffset)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            isDraggingModal = true
+                            let newOffset = value.translation.height + lastDragOffset
+                            modalOffset = max(-geometry.size.height + 100, min(0, newOffset))
+                        }
+                        .onEnded { value in
+                            isDraggingModal = false
+                            let velocity =
+                                value.predictedEndTranslation.height - value.translation.height
+
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                if velocity > 500 || modalOffset > -geometry.size.height / 2 {
+                                    // Snap to bottom (almost completely hidden)
+                                    modalOffset = -geometry.size.height + 100
+                                } else {
+                                    // Snap to top (fully visible)
+                                    modalOffset = 0
+                                }
+                            }
+                            lastDragOffset = modalOffset
+                        }
+                )
+            }
+        }
     }
 }
