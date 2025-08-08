@@ -11,24 +11,6 @@ extension Notification.Name {
     static let callCountUpdated = Notification.Name("callCountUpdated")
 }
 
-//struct SettingsView: View {
-//    var body: some View {
-//        VStack {
-//            ZStack {
-//                Image(systemName: "person.fill")
-//            }
-//            .background(
-//                LinearGradient(
-//                    gradient: Gradient(colors: [Color("4"), Color("5")]),
-//                    startPoint: .leading,
-//                    endPoint: .trailing
-//                )
-//                .ignoresSafeArea()
-//            )
-//        }
-//    }
-//}
-
 // Add SettingsViewModel to manage state
 class SettingsViewModel: ObservableObject {
     @Published private(set) var callCount: Int = 0

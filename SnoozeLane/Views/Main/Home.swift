@@ -25,174 +25,18 @@ struct Home: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                BannerAd(unitID: "ca-app-pub-2382471766301173/6160219590")
-                    .frame(height: 50)
-                    .padding(.top)
-
-                // Main content area - always show MapView
-                MapView(mapState: $mapState, alarmDistance: $alarmDistance)
-                    .padding(.bottom, windowSharedModel.contentPadding)
-                    .onChange(of: mapState) { oldValue, newValue in
-                        windowSharedModel.updateSheetHeight(for: newValue)
-                    }
-                    .onAppear {
-                        guard sceneDelegate.tabWindow == nil else { return }
-                        sceneDelegate.addTabBar(windowSharedModel)
-                    }
-            }
-
-            // Custom Bottom Sheet
-            VStack(spacing: 0) {
-                // Drag indicator
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color.gray.opacity(0.5))
-                    .frame(width: 36, height: 5)
-                    .padding(.top, 8)
-                    .padding(.bottom, 4)
-
-                // Sheet content
-                NavigationStack {
-                    ScrollView {
-                        VStack(spacing: 15) {
-                            if windowSharedModel.activeTab == .search {
-                                dynamicSheet
-                            } else if windowSharedModel.activeTab == .settings {
-                                SettingsView()
-                            }
-                        }
-                        .padding(.horizontal, 15)
-                        .padding(.vertical, 10)
-                    }
-                    .scrollIndicators(.hidden)
-                    .scrollContentBackground(.hidden)
-                    .toolbar(content: {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Text(windowSharedModel.activeTab.title)
-                                .font(.title3.bold())
-                        }
-                    })
-                }
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .opacity(0.95)
-                )
-                .cornerRadius(15, corners: [.topLeft, .topRight])
-            }
-            .frame(height: windowSharedModel.sheetHeight)
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .opacity(0.95)
-            )
-            .cornerRadius(15, corners: [.topLeft, .topRight])
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: -5)
-        }
-    }
-
-    @ViewBuilder
-    private var dynamicSheet: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            if mapState == .noInput {
-                LocationSearchView(
-                    mapState: $mapState,
-                    locationViewModel: locationViewModel
-                )
-                .environmentObject(locationViewModel)
-            } else if mapState == .searchingForLocation {
-                LocationSearchView(
-                    mapState: $mapState,
-                    locationViewModel: locationViewModel
-                )
-                .environmentObject(locationViewModel)
-            } else if mapState == .locationSelected || mapState == .polylineAdded {
-                TripSetupView(mapState: $mapState, alarmDistance: $alarmDistance)
-                    .environmentObject(locationViewModel)
-                    .environmentObject(tripProgressViewModel)
-            } else if mapState == .tripInProgress {
-                TripProgressView(
-                    mapState: $mapState,
-                    distance: locationViewModel.distance ?? 0,
-                    isActive: .constant(true)
-                )
-                .environmentObject(locationViewModel)
-                .environmentObject(tripProgressViewModel)
-            } else if mapState == .settingAlarmRadius {
-                AlarmSettingsView(
-                    isPresented: .constant(true),
-                    alarmDistance: $alarmDistance,
-                    onConfirm: {
-                        mapState = .locationSelected
-                    }
-                )
-                .environmentObject(locationViewModel)
-                .environmentObject(tripProgressViewModel)
-            }
-        }
-    }
-}
-
-// Extension for rounded corners
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
-    }
-}
-
-/// Custom Tab Bar
-struct CustomTabBar: View {
-    @EnvironmentObject var windowSharedModel: WindowSharedModel
-
-    var body: some View {
         VStack(spacing: 0) {
-            Divider()
+            BannerAd(unitID: "ca-app-pub-2382471766301173/6160219590")
+                .frame(height: 50)
+                .padding(.top)
 
-            HStack(spacing: 0) {
-                ForEach(MenuTabs.allCases, id: \.rawValue) { tab in
-                    Button {
-                        windowSharedModel.activeTab = tab
-                    } label: {
-                        VStack {
-                            Image(systemName: tab.rawValue)
-                                .font(.title2)
-
-                            Text(tab.title)
-                                .font(.caption)
-                        }
-                        .foregroundStyle(
-                            windowSharedModel.activeTab == tab ? Color(.systemOrange) : Color("2")
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(.rect)
-                    }
+            // Main content area - always show MapView
+            MapView(mapState: $mapState, alarmDistance: $alarmDistance)
+                .onChange(of: mapState) { oldValue, newValue in
+                    windowSharedModel.updateSheetHeight(for: newValue)
                 }
-            }
-            .frame(height: windowSharedModel.tabBarHeight)
         }
-        .background(Color("5"))
-        .offset(y: windowSharedModel.hideTabBar ? windowSharedModel.tabBarHeight : 0)
-        .animation(.snappy(duration: 0.25, extraBounce: 0), value: windowSharedModel.hideTabBar)
     }
 }
+
+

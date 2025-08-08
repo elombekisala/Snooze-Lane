@@ -20,14 +20,13 @@ struct LocationSearchView: View {
             VStack(alignment: .center, spacing: 15) {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Color("3"))
-                        .shadow(color: Color("3").opacity(0.6), radius: 5, x: -3, y: -3)
-                        .shadow(color: Color(.black).opacity(0.4), radius: 5, x: 3, y: 3)
+                        .fill(Color(.systemGray6))
+                        .shadow(color: Color(.systemGray4).opacity(0.3), radius: 3, x: 0, y: 2)
 
                     HStack {
                         if locationSearchViewModel.queryFragment.isEmpty {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(Color("1"))
+                                .foregroundColor(.gray)
                                 .padding(.leading, 15)
                         }
                         TextField(
@@ -38,7 +37,7 @@ struct LocationSearchView: View {
                                 }
                             }
                         )
-                        .foregroundColor(.white).opacity(1)
+                        .foregroundColor(.primary)
                         .padding(.leading, locationSearchViewModel.queryFragment.isEmpty ? 0 : 15)
 
                         if !locationSearchViewModel.queryFragment.isEmpty {
@@ -51,7 +50,7 @@ struct LocationSearchView: View {
                                 }
                             }) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.gray)
                             }
                             .padding(.trailing, 15)
                         }

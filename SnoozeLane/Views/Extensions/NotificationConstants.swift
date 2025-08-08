@@ -17,4 +17,5 @@ extension Notification.Name {
     static let alarmDistanceChanged = Notification.Name("alarmDistanceChanged")
     static let didClearMapElements = Notification.Name("didClearMapElements")
     static let clearMapOverlays = Notification.Name("clearMapOverlays")
+    static let distanceUpdated = Notification.Name("distanceUpdated")
 }

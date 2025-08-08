@@ -28,6 +28,7 @@ struct TripProgressView: View {
     @State private var showNotification = false
     @State private var displayedDistance: String = ""
     @State private var tripCompleted: Bool = false
+    @AppStorage("useMetricUnits") private var useMetricUnits: Bool = false
 
     let notificationCenter = UNUserNotificationCenter.current()
 
@@ -110,10 +111,24 @@ struct TripProgressView: View {
                                 .rotationEffect(.init(degrees: 360 * progressViewModel.progress))
                         }
 
-                        // Display remaining distance in miles or success message
-                        if !tripCompleted {
+                        // Display remaining distance or arrival confirmation
+                        if progressViewModel.distance <= progressViewModel.alarmDistanceThreshold
+                            && progressViewModel.isStarted
+                        {
+                            // User is within threshold - show arrival message
+                            VStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.green)
+                                Text("You've Arrived!")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            .rotationEffect(.init(degrees: 90))
+                        } else {
+                            // Show remaining distance
                             Text(
-                                "\(String(format: "%.2f", ((progressViewModel.currentLocation?.distance(from: progressViewModel.destination ?? CLLocation()) ?? 0) - progressViewModel.alarmDistanceThreshold) / 1609.34)) mi"
+                                formatDistance(progressViewModel.distance)
                             )
                             .foregroundColor(.white)
                             .font(.system(size: 32, weight: .light))
@@ -127,36 +142,29 @@ struct TripProgressView: View {
                     .animation(.linear(duration: 0.991), value: progressViewModel.progress)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
-                    Button {
-                        print("🔘 Button pressed - Current tripCompleted: \(tripCompleted)")
-                        if tripCompleted {
+                    if tripCompleted {
+                        Button {
                             print("🔄 STARTING NEW TRIP")
                             progressViewModel.startNewTrip()
                             locationViewModel.selectedSnoozeLaneLocation = nil  // Clear destination marker and overlays
                             mapState = .noInput
-                        } else {
-                            print("🔄 TRIP STATE CHANGE: RESETTING TRIP")
-                            print("📍 MAP STATE: CHANGING TO NO INPUT")
-                            progressViewModel.stopTrip()
-                            mapState = .noInput
-                        }
-                        print("✅ TRIP RESET COMPLETE")
-                    } label: {
-                        HStack(spacing: 12) {
-                            Spacer()
+                            print("✅ TRIP RESET COMPLETE")
+                        } label: {
+                            HStack(spacing: 12) {
+                                Spacer()
 
-                            Text(tripCompleted ? "START NEW TRIP" : "CANCEL TRIP")
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .opacity(tripCompleted ? 1.0 : 0.6)
+                                Text("START NEW TRIP")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
 
-                            Spacer()
+                                Spacer()
+                            }
+                            .frame(height: 50)
+                            .background(Color.green)
+                            .cornerRadius(10)
+                            .padding(.horizontal)
+                            .padding(.bottom, 10)
                         }
-                        .frame(height: 50)
-                        .background(tripCompleted ? Color.green : Color("6"))
-                        .cornerRadius(10)
-                        .padding(.horizontal)
-                        .padding(.bottom, 10)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -174,9 +182,27 @@ struct TripProgressView: View {
                 progressViewModel.triggerNotification()
                 tripCompleted = true
                 print("🔔 NOTIFICATION TRIGGERED")
-                // Remove the automatic mapState change
                 // Clear map overlays when trip is completed
                 NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+            }
+        }
+        .onChange(of: progressViewModel.distance) { distance in
+            // Check if user is within threshold and update trip completion
+            if distance <= progressViewModel.alarmDistanceThreshold && !tripCompleted
+                && progressViewModel.isStarted
+            {
+                print(
+                    "🎯 WITHIN THRESHOLD: Distance \(distance)m, Threshold \(progressViewModel.alarmDistanceThreshold)m"
+                )
+                progressViewModel.triggerNotification()
+                tripCompleted = true
+                print("🔔 ARRIVAL NOTIFICATION TRIGGERED")
+                NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+            } else if distance > progressViewModel.alarmDistanceThreshold && tripCompleted && progressViewModel.isStarted {
+                // User moved outside threshold - reset trip completion
+                print("🚫 OUTSIDE THRESHOLD: Distance \(distance)m, Threshold \(progressViewModel.alarmDistanceThreshold)m")
+                tripCompleted = false
+                print("🔄 TRIP COMPLETION RESET")
             }
         }
     }
@@ -190,6 +216,29 @@ struct TripProgressView: View {
             Button("\(value) \(hint)") {
                 onClick(value)
             }
+        }
+    }
+
+    // MARK: Distance Formatting
+    private func formatDistance(_ distanceInMeters: Double) -> String {
+        let formatter = MeasurementFormatter()
+        formatter.unitOptions = .providedUnit
+        formatter.numberFormatter.maximumFractionDigits = 1
+
+        let measurement = Measurement(value: distanceInMeters, unit: UnitLength.meters)
+
+        if useMetricUnits {
+            // Use kilometers for metric
+            if distanceInMeters >= 1000 {
+                let kilometers = measurement.converted(to: .kilometers)
+                return formatter.string(from: kilometers)
+            } else {
+                return formatter.string(from: measurement)
+            }
+        } else {
+            // Use miles for imperial
+            let miles = measurement.converted(to: .miles)
+            return formatter.string(from: miles)
         }
     }
 }

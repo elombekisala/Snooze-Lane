@@ -91,6 +91,20 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             self.updateDistance(location: location)
         }
         .store(in: &cancellables)
+        
+        // Listen for distance updates from LocationSearchViewModel
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(distanceUpdated),
+            name: .distanceUpdated,
+            object: nil
+        )
+    }
+    
+    @objc func distanceUpdated(_ notification: Notification) {
+        guard let newDistance = notification.object as? Double else { return }
+        distance = newDistance
+        updateProgress()
     }
 
     private func updateDistance(location: CLLocation) {

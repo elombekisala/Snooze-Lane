@@ -96,7 +96,15 @@ class LocationSearchViewModel: NSObject, ObservableObject {
         let distanceInMeters = currentLocation.distance(from: destinationLocation)
         distance = distanceInMeters
         formattedDistance = formatDistance(distanceInMeters)
-        print("Calculated distance: \(formattedDistance)")
+        #if DEBUG
+            print("Calculated distance: \(formattedDistance)")
+        #endif
+
+        // Notify TripProgressViewModel of distance update
+        NotificationCenter.default.post(
+            name: .distanceUpdated,
+            object: distanceInMeters
+        )
 
         fetchEstimatedRestTime(from: currentLocation.coordinate, to: destinationLocation.coordinate)
 
@@ -250,13 +258,24 @@ class LocationSearchViewModel: NSObject, ObservableObject {
     private func formatDistance(_ distance: Double) -> String {
         let formatter = MeasurementFormatter()
         formatter.unitOptions = .providedUnit
+        formatter.numberFormatter.maximumFractionDigits = 1
         let measurement = Measurement(value: distance, unit: UnitLength.meters)
-        
-        if distance >= 1000 {
-            let kilometers = measurement.converted(to: .kilometers)
-            return formatter.string(from: kilometers)
+
+        // Check user preference for units
+        let useMetricUnits = UserDefaults.standard.bool(forKey: "useMetricUnits")
+
+        if useMetricUnits {
+            // Use kilometers for metric
+            if distance >= 1000 {
+                let kilometers = measurement.converted(to: .kilometers)
+                return formatter.string(from: kilometers)
+            } else {
+                return formatter.string(from: measurement)
+            }
         } else {
-            return formatter.string(from: measurement)
+            // Use miles for imperial
+            let miles = measurement.converted(to: .miles)
+            return formatter.string(from: miles)
         }
     }
 

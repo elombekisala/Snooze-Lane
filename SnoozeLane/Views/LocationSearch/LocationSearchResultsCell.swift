@@ -10,18 +10,20 @@ import SwiftUI
 struct LocationSearchResultsCell: View {
     let title: String
     let subtitle: String
-    
+
     var body: some View {
         HStack {
-            
+
             ZStack {
                 Circle()
-                    .fill(LinearGradient(
-                        gradient: Gradient(colors: [Color("MainOrange"), .orange]),
-                        startPoint: .top,
-                        endPoint: .bottom))
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color("MainOrange"), .orange]),
+                            startPoint: .top,
+                            endPoint: .bottom)
+                    )
                     .frame(width: 40, height: 40)
-                
+
                 Image(systemName: "mappin")
                     .resizable()
                     .foregroundColor(.white)
@@ -30,17 +32,17 @@ struct LocationSearchResultsCell: View {
             }
             .frame(maxWidth: 40, alignment: .leading)
             .padding(.vertical, 8)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 20))
                     .fontWeight(.bold)
                     .foregroundColor(Color("1"))
-                
+
                 Text(subtitle)
                     .font(.system(size: 14))
                     .foregroundColor(Color("2"))
-                
+
                 Divider()
                     .background(.white)
                     .padding(.trailing, 8)
@@ -54,6 +56,6 @@ struct LocationSearchResultsCell: View {
 
 struct LocationSearchResultsCell_Previews: PreviewProvider {
     static var previews: some View {
-        LocationSearchResultsCell(title: "Lombs House", subtitle: "123 Main St, Hackensack NJ")
+        LocationSearchResultsCell(title: "Sample Location", subtitle: "123 Main St, City, State")
     }
 }
