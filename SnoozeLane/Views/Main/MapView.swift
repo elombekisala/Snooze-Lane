@@ -14,7 +14,7 @@ struct MapView: View {
     @State private var searchPanelHeight: CGFloat = 0
     @State private var isSearching: Bool = false
     @State private var showProgressView: Bool = true
-    
+
     // New sheet state management
     @State private var sheetOffset: CGFloat = 0
     @State private var sheetHeight: CGFloat = 120
@@ -57,7 +57,8 @@ struct MapView: View {
                             .padding(16)
                             .background(
                                 LinearGradient(
-                                    gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]),
+                                    gradient: Gradient(colors: [Color("4"), Color("5"), Color("5")]
+                                    ),
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -139,7 +140,7 @@ struct MapView: View {
             if showSearchOverlay {
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     // Draggable Sheet
                     VStack(spacing: 0) {
                         // Drag Handle
@@ -153,16 +154,19 @@ struct MapView: View {
                                     .onChanged { value in
                                         isDragging = true
                                         let newOffset = value.translation.height + lastDragOffset
-                                        sheetOffset = max(-sheetHeight + 60, min(0, newOffset))
+                                        // Allow dragging down much further - almost completely off screen
+                                        sheetOffset = max(-sheetHeight + 20, min(0, newOffset))
                                     }
                                     .onEnded { value in
                                         isDragging = false
-                                        let velocity = value.predictedEndTranslation.height - value.translation.height
-                                        
+                                        let velocity =
+                                            value.predictedEndTranslation.height
+                                            - value.translation.height
+
                                         withAnimation(.easeOut(duration: 0.3)) {
                                             if velocity > 500 || sheetOffset > -sheetHeight / 2 {
-                                                // Snap to bottom (minimal view)
-                                                sheetOffset = -sheetHeight + 60
+                                                // Snap to bottom (minimal view - just 20px showing)
+                                                sheetOffset = -sheetHeight + 20
                                             } else {
                                                 // Snap to top (full view)
                                                 sheetOffset = 0
@@ -297,7 +301,8 @@ struct MapView: View {
                                                         Image(systemName: "eye.slash")
                                                             .font(.system(size: 14))
                                                         Text("Hide")
-                                                            .font(.system(size: 14, weight: .medium))
+                                                            .font(
+                                                                .system(size: 14, weight: .medium))
                                                     }
                                                     .foregroundColor(.gray)
                                                     .padding(.horizontal, 12)
@@ -330,7 +335,8 @@ struct MapView: View {
                                                         Image(systemName: "eye")
                                                             .font(.system(size: 14))
                                                         Text("Show")
-                                                            .font(.system(size: 14, weight: .medium))
+                                                            .font(
+                                                                .system(size: 14, weight: .medium))
                                                     }
                                                     .foregroundColor(.gray)
                                                     .padding(.horizontal, 12)
@@ -374,7 +380,7 @@ struct MapView: View {
                         showSearchOverlay.toggle()
                         if showSearchOverlay {
                             sheetHeight = 120
-                            sheetOffset = 0
+                            sheetOffset = -sheetHeight + 20  // Start minimized
                             isSearching = false
                         }
                     }
@@ -457,7 +463,7 @@ struct MapView: View {
             locationViewModel.clearMapElements()
         }
     }
-    
+
     private func updateSheetHeight() {
         withAnimation(.easeInOut(duration: 0.3)) {
             switch mapState {
@@ -472,10 +478,10 @@ struct MapView: View {
             default:
                 sheetHeight = 120
             }
-            
+
             // Update offset to match new height
-            if sheetOffset < -sheetHeight + 60 {
-                sheetOffset = -sheetHeight + 60
+            if sheetOffset < -sheetHeight + 20 {
+                sheetOffset = -sheetHeight + 20
             }
         }
     }
