@@ -71,6 +71,19 @@ struct MapView: View {
                         handleLongPress()
                     }
             )
+            .simultaneousGesture(
+                DragGesture()
+                    .onChanged { _ in
+                        // User is dragging the map
+                        if userTrackingMode == .follow {
+                            userTrackingMode = .none
+                            // Provide subtle haptic feedback when tracking stops
+                            AudioServicesPlaySystemSound(1103)  // Light tap sound
+                        }
+                        // Mark that user has interacted with map
+                        locationManager.userInteractedWithMap()
+                    }
+            )
             .onChange(of: userTrackingMode) { newMode in
                 // Handle user tracking mode changes
                 if newMode == .none {
@@ -84,17 +97,7 @@ struct MapView: View {
                     updateAlarmRadiusCircle()
                 }
             }
-            .gesture(
-                DragGesture()
-                    .onChanged { _ in
-                        // User is dragging the map
-                        if userTrackingMode == .follow {
-                            userTrackingMode = .none
-                            // Provide subtle haptic feedback when tracking stops
-                            AudioServicesPlaySystemSound(1103)  // Light tap sound
-                        }
-                    }
-            )
+
 
             // Top Controls - Pinned to top right (State-based visibility)
             if mapState.shouldShowTopControls {
@@ -249,20 +252,20 @@ struct MapView: View {
         .onChange(of: mapState) {
             handleMapStateChange()
         }
-                    .onChange(of: locationManager.location) { newLocation in
-                handleLocationUpdate(newLocation)
-                
-                // Update polyline and annotations when location changes
-                if let newLocation = newLocation, selectedDestination != nil {
-                    updatePolylineCoordinates()
-                }
+        .onChange(of: locationManager.location) { newLocation in
+            handleLocationUpdate(newLocation)
+
+            // Update polyline and annotations when location changes
+            if let newLocation = newLocation, selectedDestination != nil {
+                updatePolylineCoordinates()
             }
-            .onReceive(Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()) { _ in
-                // Update overlay positions periodically for smooth movement
-                if selectedDestination != nil {
-                    // Force overlay refresh
-                }
+        }
+        .onReceive(Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()) { _ in
+            // Update overlay positions periodically for smooth movement
+            if selectedDestination != nil {
+                // Force overlay refresh
             }
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
@@ -405,7 +408,29 @@ struct MapView: View {
     }
 
     private func handleLongPress() {
-        // Use the center of the current map view as the destination
+        // For now, we'll use the center of the current map view
+        // In a future implementation, we could capture the actual tap location
+        // and convert it to map coordinates using MapViewProxy
+        let coordinate = region.center
+        let title = "Selected Location"
+        setDestination(coordinate, title: title)
+
+        // Update map state to show location details
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .locationSelected
+        }
+
+        // Scale map to show both user location and destination
+        scaleMapToShowBothLocations()
+
+        // Provide haptic feedback
+        provideHapticFeedback()
+    }
+    
+    private func handleLongPressAtLocation(_ location: CGPoint) {
+        // Convert screen coordinates to map coordinates
+        // This would require MapViewProxy in a real implementation
+        // For now, we'll use the center of the visible region
         let coordinate = region.center
         let title = "Selected Location"
         setDestination(coordinate, title: title)
@@ -487,19 +512,19 @@ struct MapView: View {
         // The size and position are calculated based on the map's current zoom level
     }
 
-        private func coordinateToScreenPoint(_ coordinate: CLLocationCoordinate2D) -> CGPoint? {
+    private func coordinateToScreenPoint(_ coordinate: CLLocationCoordinate2D) -> CGPoint? {
         // Calculate position relative to the current map region
         let latDiff = coordinate.latitude - region.center.latitude
         let lonDiff = coordinate.longitude - region.center.longitude
-        
+
         // Convert coordinate differences to screen points
         // Use the map's current span to determine scale
         let latScale = UIScreen.main.bounds.height / region.span.latitudeDelta
         let lonScale = UIScreen.main.bounds.width / region.span.longitudeDelta
-        
+
         let x = UIScreen.main.bounds.width / 2 + CGFloat(lonDiff * Double(lonScale))
         let y = UIScreen.main.bounds.height / 2 - CGFloat(latDiff * Double(latScale))
-        
+
         return CGPoint(x: x, y: y)
     }
 
@@ -508,15 +533,15 @@ struct MapView: View {
         // Use the map's current span to determine proper scale
         let latScale = UIScreen.main.bounds.height / region.span.latitudeDelta
         let lonScale = UIScreen.main.bounds.width / region.span.longitudeDelta
-        
+
         // Use the smaller scale to ensure circle fits in view
         let scale = min(latScale, lonScale)
-        
+
         // Convert radius from meters to screen points
         // 1 degree of latitude ≈ 111,000 meters
         let metersPerDegree = 111000.0
         let radiusInDegrees = radius / metersPerDegree
-        
+
         return CGFloat(radiusInDegrees * Double(scale))
     }
 
