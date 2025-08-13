@@ -98,7 +98,6 @@ struct MapView: View {
                 }
             }
 
-
             // Top Controls - Pinned to top right (State-based visibility)
             if mapState.shouldShowTopControls {
                 VStack(spacing: 12) {
@@ -260,12 +259,7 @@ struct MapView: View {
                 updatePolylineCoordinates()
             }
         }
-        .onReceive(Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()) { _ in
-            // Update overlay positions periodically for smooth movement
-            if selectedDestination != nil {
-                // Force overlay refresh
-            }
-        }
+
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
@@ -420,13 +414,13 @@ struct MapView: View {
             mapState = .locationSelected
         }
 
-        // Scale map to show both user location and destination
-        scaleMapToShowBothLocations()
+        // Don't automatically scale the map - let user control it naturally
+        // This prevents the pulsing/refreshing behavior
 
         // Provide haptic feedback
         provideHapticFeedback()
     }
-    
+
     private func handleLongPressAtLocation(_ location: CGPoint) {
         // Convert screen coordinates to map coordinates
         // This would require MapViewProxy in a real implementation
@@ -440,8 +434,8 @@ struct MapView: View {
             mapState = .locationSelected
         }
 
-        // Scale map to show both user location and destination
-        scaleMapToShowBothLocations()
+        // Don't automatically scale the map - let user control it naturally
+        // This prevents the pulsing/refreshing behavior
 
         // Provide haptic feedback
         provideHapticFeedback()
@@ -495,10 +489,8 @@ struct MapView: View {
             destination,
         ]
 
-        // Scale map to show both locations if not interacting
-        if !isMapInteracting {
-            scaleMapToShowBothLocations()
-        }
+        // Don't automatically scale the map - let user control it naturally
+        // This prevents the pulsing/refreshing behavior
     }
 
     private func updateAlarmRadiusCircle() {
