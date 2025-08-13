@@ -134,7 +134,7 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @EnvironmentObject var loginViewModel: LoginViewModel
     @EnvironmentObject var locationManager: LocationManager
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) var dismiss
     @AppStorage("hasCompletedWalkthrough") var hasCompletedWalkthrough: Bool = false
     @AppStorage("currentPage") var currentPage: Int = 1
     @State private var isLoggingOut = false
@@ -151,481 +151,410 @@ struct SettingsView: View {
     let twilioPhoneNumber = "8557096502"
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Stats Section
-                HStack(spacing: 12) {
-                    Text("\(viewModel.callCount)")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(Color("MainOrange"))
-                        .opacity(1.0)
-                        .shadow(color: Color("MainOrange").opacity(0.3), radius: 2, x: 0, y: 0)
-
-                    Text("Trips Completed")
-                        .font(.subheadline)
-                        .foregroundColor(Color("2"))
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal)
-                .background(
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(Color("4").opacity(0.5))
-                )
-                .padding(.horizontal)
-                .padding(.top, 16)  // Add some top padding since we removed the logo
-
-                // Contact Section
-                VStack(spacing: 16) {
-                    Button(action: {
-                        savePhoneNumber()
-                    }) {
-                        HStack {
-                            Image(systemName: "person.crop.circle.badge.plus")
-                                .font(.title2)
-                            Text("Add to Contacts")
-                                .fontWeight(.semibold)
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Contact Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Contact")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                // Backup contacts action
+                            }) {
+                                HStack {
+                                    Image(systemName: "person.2.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Backup Contacts")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color("MainOrange"), .orange]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(15)
-                        .foregroundColor(.white)
-                    }
-
-                    Button(action: {
-                        showInstructions = true
-                    }) {
-                        HStack {
-                            Image(systemName: "info.circle")
-                                .font(.title2)
-                            Text("How to Enable Calls")
-                                .fontWeight(.semibold)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color("3"))
-                        .cornerRadius(15)
-                        .foregroundColor(.white)
-                    }
-                }
-                .padding(.horizontal)
-
-                // App Preferences Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("App Preferences")
-                        .font(.headline)
-                        .foregroundColor(Color("1"))
                         .padding(.horizontal)
-                    
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            // Toggle dark mode for modals
-                            viewModel.isDarkModeEnabled.toggle()
-                        }) {
-                            HStack {
-                                Image(systemName: "moon.fill")
-                                    .font(.title2)
-                                Text("Dark Mode for Modals")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text(viewModel.isDarkModeEnabled ? "On" : "Off")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
+                    }
+
+                    // App Preferences Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("App Preferences")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
                         
-                        Button(action: {
-                            // Toggle notifications
-                        }) {
-                            HStack {
-                                Image(systemName: "bell.fill")
-                                    .font(.title2)
-                                Text("Notification Preferences")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                // Toggle dark mode for modals
+                                viewModel.isDarkModeEnabled.toggle()
+                            }) {
+                                HStack {
+                                    Image(systemName: "moon.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Dark Mode for Modals")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Text(viewModel.isDarkModeEnabled ? "On" : "Off")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Notification preferences
+                            }) {
+                                HStack {
+                                    Image(systemName: "bell.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Notifications")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Location accuracy
+                            }) {
+                                HStack {
+                                    Image(systemName: "location.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Location Accuracy")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
                         }
+                        .padding(.horizontal)
+                    }
+
+                    // Map Settings Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Map Settings")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
                         
-                        Button(action: {
-                            // Toggle location accuracy
-                        }) {
-                            HStack {
-                                Image(systemName: "location.circle.fill")
-                                    .font(.title2)
-                                Text("Location Accuracy")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                // Map type selection
+                            }) {
+                                HStack {
+                                    Image(systemName: "map.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Map Type")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Text(viewModel.selectedMapType)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Traffic display
+                            }) {
+                                HStack {
+                                    Image(systemName: "car.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Show Traffic")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Text(viewModel.showTraffic ? "On" : "Off")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Units preference
+                            }) {
+                                HStack {
+                                    Image(systemName: "ruler.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Units")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Text(viewModel.units)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
                         }
+                        .padding(.horizontal)
+                    }
+
+                    // Wake-Up Settings Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Wake-Up Settings")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                // Default alarm radius
+                            }) {
+                                HStack {
+                                    Image(systemName: "circle.dashed")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Default Alarm Radius")
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    Spacer()
+                                    Text("\(viewModel.defaultAlarmRadius)m")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Call timing
+                            }) {
+                                HStack {
+                                    Image(systemName: "clock.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Call Timing")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Text(viewModel.callTiming)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Backup contacts
+                            }) {
+                                HStack {
+                                    Image(systemName: "person.2.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Backup Contacts")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Settings Section
+                    VStack(spacing: 16) {
+                        Button("Restart Walkthrough") {
+                            currentPage = 1
+                            hasCompletedWalkthrough = false
+                        }
+                        .buttonStyle(SettingsButtonStyle())
+
+                        Button(action: logout) {
+                            HStack {
+                                Image(systemName: "arrow.right.square")
+                                Text("Logout")
+                            }
+                        }
+                        .buttonStyle(SettingsButtonStyle(isDestructive: true))
                     }
                     .padding(.horizontal)
-                }
 
-                // Map Settings Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Map Settings")
-                        .font(.headline)
-                        .foregroundColor(Color("1"))
+                    // Data Management Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Data Management")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                // Clear app data
+                            }) {
+                                HStack {
+                                    Image(systemName: "trash.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Clear App Data")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Export trip history
+                            }) {
+                                HStack {
+                                    Image(systemName: "square.and.arrow.up.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Export Trip History")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Privacy settings
+                            }) {
+                                HStack {
+                                    Image(systemName: "hand.raised.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Privacy Settings")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+                        }
                         .padding(.horizontal)
-                    
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            // Map type selection
-                        }) {
-                            HStack {
-                                Image(systemName: "map.fill")
-                                    .font(.title2)
-                                Text("Map Type")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text(viewModel.selectedMapType)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Traffic display
-                        }) {
-                            HStack {
-                                Image(systemName: "car.fill")
-                                    .font(.title2)
-                                Text("Show Traffic")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Units preference
-                        }) {
-                            HStack {
-                                Image(systemName: "ruler.fill")
-                                    .font(.title2)
-                                Text("Units")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text("Miles")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
                     }
-                    .padding(.horizontal)
-                }
 
-                // Wake-Up Settings Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Wake-Up Settings")
-                        .font(.headline)
-                        .foregroundColor(Color("1"))
+                    // Support Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Support")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                // Help center
+                            }) {
+                                HStack {
+                                    Image(systemName: "questionmark.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Help Center")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Contact support
+                            }) {
+                                HStack {
+                                    Image(systemName: "envelope.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Contact Support")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+
+                            Button(action: {
+                                // Rate app
+                            }) {
+                                HStack {
+                                    Image(systemName: "star.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Rate SnoozeLane")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(SettingsButtonStyle())
+                        }
                         .padding(.horizontal)
-                    
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            // Alarm radius preference
-                        }) {
-                            HStack {
-                                Image(systemName: "alarm.fill")
-                                    .font(.title2)
-                                Text("Default Alarm Radius")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text("500m")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Call timing
-                        }) {
-                            HStack {
-                                Image(systemName: "clock.fill")
-                                    .font(.title2)
-                                Text("Call Timing")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text("Immediate")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Backup contacts
-                        }) {
-                            HStack {
-                                Image(systemName: "person.2.fill")
-                                    .font(.title2)
-                                Text("Backup Contacts")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
                     }
-                    .padding(.horizontal)
                 }
-
-                // Settings Section
-                VStack(spacing: 16) {
-                    Button("Restart Walkthrough") {
-                        currentPage = 1
-                        hasCompletedWalkthrough = false
-                    }
-                    .buttonStyle(SettingsButtonStyle())
-
-                    Button(action: logout) {
-                        HStack {
-                            Image(systemName: "arrow.right.square")
-                            Text("Logout")
-                        }
-                    }
-                    .buttonStyle(SettingsButtonStyle(isDestructive: true))
-                }
-                .padding(.horizontal)
-
-                // Data Management Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Data Management")
-                        .font(.headline)
-                        .foregroundColor(Color("1"))
-                        .padding(.horizontal)
-                    
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            clearLocalData()
-                        }) {
-                            HStack {
-                                Image(systemName: "trash.fill")
-                                    .font(.title2)
-                                Text("Clear App Data")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Export data
-                        }) {
-                            HStack {
-                                Image(systemName: "square.and.arrow.up.fill")
-                                    .font(.title2)
-                                Text("Export Trip History")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Privacy settings
-                        }) {
-                            HStack {
-                                Image(systemName: "hand.raised.fill")
-                                    .font(.title2)
-                                Text("Privacy Settings")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-
-                // Support Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Support")
-                        .font(.headline)
-                        .foregroundColor(Color("1"))
-                        .padding(.horizontal)
-                    
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            // Help center
-                        }) {
-                            HStack {
-                                Image(systemName: "questionmark.circle.fill")
-                                    .font(.title2)
-                                Text("Help Center")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Contact support
-                        }) {
-                            HStack {
-                                Image(systemName: "envelope.fill")
-                                    .font(.title2)
-                                Text("Contact Support")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                        
-                        Button(action: {
-                            // Rate app
-                        }) {
-                            HStack {
-                                Image(systemName: "star.fill")
-                                    .font(.title2)
-                                Text("Rate SnoozeLane")
-                                .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color("6").opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(Color("1"))
-                        }
-                    }
-                    .padding(.horizontal)
-                }
+                .padding(.vertical)
             }
-            .padding()
+            .background(Color.black)
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.large)
+            .navigationBarItems(trailing: Button("Done") {
+                dismiss()
+            })
         }
-        .alert("Contact Saved!", isPresented: $showingSaveConfirmation) {
-            Button("OK", role: .cancel) {}
-            Button("View Contact") {
-                showContactView = true
-            }
-        } message: {
-            Text("Would you like to view the contact to add it to your favorites?")
-        }
-        .sheet(isPresented: $showContactView) {
-            if let contact = savedContact {
-                ContactView(contact: contact)
-            }
-        }
-        .sheet(isPresented: $showInstructions) {
-            InstructionsView()
-        }
-        .onAppear {
-            viewModel.fetchCallCount()
-        }
+        .background(Color.black)
     }
 
     func savePhoneNumber() {
@@ -717,7 +646,7 @@ struct SettingsView: View {
                             loginViewModel.status = false
 
                             // Dismiss the current view first
-                            presentationMode.wrappedValue.dismiss()
+                            dismiss()
 
                             // Wait a brief moment before resetting the root view
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -768,15 +697,22 @@ struct SettingsButtonStyle: ButtonStyle {
         configuration.label
             .padding()
             .frame(maxWidth: .infinity)
-            .background(isDestructive ? Color.red.opacity(0.8) : Color("3"))
+            .background(
+                isDestructive ? Color.red.opacity(0.8) : 
+                Color.gray.opacity(0.2)
+            )
             .foregroundColor(.white)
-            .cornerRadius(15)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+            )
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
     }
 }
 
 struct InstructionsView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
         NavigationView {
@@ -824,7 +760,7 @@ struct InstructionsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }
                 }
             }
