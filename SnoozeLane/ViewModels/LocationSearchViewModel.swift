@@ -57,6 +57,7 @@ class LocationSearchViewModel: NSObject, ObservableObject {
 
     var queryFragment: String = "" {
         didSet {
+            print("🔍 QUERY FRAGMENT CHANGED: '\(queryFragment)'")
             searchCompleter.queryFragment = queryFragment
         }
     }
@@ -215,17 +216,21 @@ class LocationSearchViewModel: NSObject, ObservableObject {
         print("   🔄 Starting coordinate search...")
         print("   📍 Search request: \(searchRequest)")
         print("   📍 Search object: \(search)")
-        
+        print("   🔍 About to start search...")
+        print("   🔍 Search isActive before start: \(search.isSearching)")
+
         // Add a timeout to detect if search is hanging
         DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
             print("⏰ Search timeout - search may be hanging")
+            print("⏰ Search isActive after timeout: \(search.isSearching)")
         }
-        
+
+        print("   🚀 About to call search.start()...")
         search.start { [weak self] response, error in
             print("🔄 Search completion handler called!")
-            guard let self = self else { 
+            guard let self = self else {
                 print("❌ Self is nil in completion handler")
-                return 
+                return
             }
 
             if let error = error {
@@ -365,10 +370,40 @@ class LocationSearchViewModel: NSObject, ObservableObject {
 
 extension LocationSearchViewModel: MKLocalSearchCompleterDelegate {
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        print("🔍 SEARCH COMPLETER RESULTS UPDATED:")
+        print("   📍 Results count: \(completer.results.count)")
+
+        for (index, result) in completer.results.enumerated() {
+            print("   📍 Result \(index + 1):")
+            print("      📍 Title: \(result.title)")
+            print("      📍 Subtitle: \(result.subtitle)")
+            
+            // Try to get coordinates for this completion
+            let searchRequest = MKLocalSearch.Request(completion: result)
+            let search = MKLocalSearch(request: searchRequest)
+            
+            print("      🔍 Getting coordinates for: \(result.title)")
+            search.start { response, error in
+                if let error = error {
+                    print("      ❌ Error getting coordinates: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let item = response?.mapItems.first {
+                    let coordinate = item.placemark.coordinate
+                    print("      ✅ Coordinates for '\(result.title)':")
+                    print("         📍 Lat: \(coordinate.latitude)")
+                    print("         📍 Lon: \(coordinate.longitude)")
+                } else {
+                    print("      ❌ No coordinates found for: \(result.title)")
+                }
+            }
+        }
+
         self.results = completer.results
     }
 
     func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-        print("Failed to find search results with error: \(error.localizedDescription)")
+        print("❌ Failed to find search results with error: \(error.localizedDescription)")
     }
 }

@@ -72,6 +72,14 @@ struct LocationSearchView: View {
                                     locationViewModel.selectLocation(result)
                                     mapState = .locationSelected
                                     self.isKeyboardVisible = false
+
+                                    // Post notification to fit map to show both user location and destination
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                        NotificationCenter.default.post(
+                                            name: .fitMapToUserAndDestination,
+                                            object: nil
+                                        )
+                                    }
                                 }
                             }
                         }

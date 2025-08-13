@@ -6,10 +6,18 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct LocationSearchResultsCell: View {
     let title: String
     let subtitle: String
+    let coordinate: CLLocationCoordinate2D?
+    
+    init(title: String, subtitle: String, coordinate: CLLocationCoordinate2D? = nil) {
+        self.title = title
+        self.subtitle = subtitle
+        self.coordinate = coordinate
+    }
 
     var body: some View {
         HStack {
@@ -42,6 +50,13 @@ struct LocationSearchResultsCell: View {
                 Text(subtitle)
                     .font(.system(size: 14))
                     .foregroundColor(.white.opacity(0.8))
+                
+                if let coordinate = coordinate {
+                    Text("📍 Lat: \(String(format: "%.6f", coordinate.latitude)), Lon: \(String(format: "%.6f", coordinate.longitude))")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
 
                 Divider()
                     .background(.white.opacity(0.3))

@@ -120,6 +120,14 @@ extension MapViewRepresentable {
                 self, selector: #selector(handleUserLocationChanged(_:)),
                 name: .userLocationChanged,
                 object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleFitMapToUserAndDestination(_:)),
+                name: .fitMapToUserAndDestination,
+                object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleAddDestinationAnnotation(_:)),
+                name: .addDestinationAnnotation,
+                object: nil)
         }
 
         deinit {
@@ -157,6 +165,37 @@ extension MapViewRepresentable {
                 DispatchQueue.main.async {
                     self.updateUserToDestinationLine()
                 }
+            }
+        }
+
+        @objc func handleFitMapToUserAndDestination(_ notification: Notification) {
+            // Fit map to show both user location and selected destination
+            DispatchQueue.main.async {
+                self.fitMapToUserAndDestination()
+            }
+        }
+
+        @objc func handleAddDestinationAnnotation(_ notification: Notification) {
+            // Add destination annotation to the map
+            guard let userInfo = notification.userInfo,
+                let coordinate = userInfo["coordinate"] as? CLLocationCoordinate2D,
+                let title = userInfo["title"] as? String,
+                let subtitle = userInfo["subtitle"] as? String
+            else { return }
+
+            DispatchQueue.main.async {
+                // Clear existing annotations first
+                self.parent.mapView.removeAnnotations(self.parent.mapView.annotations)
+
+                // Add new destination annotation
+                let annotation = MKPointAnnotation()
+                annotation.coordinate = coordinate
+                annotation.title = title
+                annotation.subtitle = subtitle
+                self.parent.mapView.addAnnotation(annotation)
+
+                // Select the annotation to show callout
+                self.parent.mapView.selectAnnotation(annotation, animated: true)
             }
         }
 
