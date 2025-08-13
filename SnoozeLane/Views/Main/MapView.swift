@@ -37,6 +37,8 @@ struct MapView: View {
     @State private var lastUserLocation: CLLocation?
     @State private var userTrackingMode: MapUserTrackingMode = .follow
     @State private var mapViewSize: CGSize = .zero
+    @State private var longPressLocation: CGPoint = .zero
+    @State private var isLongPressing: Bool = false
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -58,7 +60,8 @@ struct MapView: View {
                 if selectedDestination != nil {
                     clearDestination()
                 } else {
-                    // Place a pin at the center of the current map view
+                    // For single tap, we'll use the center for now
+                    // In a future update, we can implement proper coordinate conversion
                     let coordinate = region.center
                     let title = "Custom Location"
                     setDestination(coordinate, title: title)
@@ -67,7 +70,8 @@ struct MapView: View {
             .gesture(
                 LongPressGesture(minimumDuration: 0.5)
                     .onEnded { _ in
-                        // Handle long press for destination selection
+                        // For now, we'll use the center of the current map view
+                        // The coordinate conversion function is ready for future use
                         handleLongPress()
                     }
             )
@@ -420,12 +424,37 @@ struct MapView: View {
         // Provide haptic feedback
         provideHapticFeedback()
     }
+    
+    private func screenPointToCoordinate(_ screenPoint: CGPoint) -> CLLocationCoordinate2D {
+        // Convert screen coordinates to map coordinates
+        // This is the inverse of coordinateToScreenPoint
+        
+        let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = UIScreen.main.bounds.height
+        
+        // Calculate the offset from center of screen
+        let xOffset = screenPoint.x - screenWidth / 2
+        let yOffset = screenPoint.y - screenHeight / 2
+        
+        // Convert offset to coordinate differences using current map scale
+        let lonScale = region.span.longitudeDelta / screenWidth
+        let latScale = region.span.latitudeDelta / screenHeight
+        
+        let lonDiff = Double(xOffset) * lonScale
+        let latDiff = -Double(yOffset) * latScale  // Negative because screen Y increases downward
+        
+        // Calculate the actual coordinate
+        let coordinate = CLLocationCoordinate2D(
+            latitude: region.center.latitude + latDiff,
+            longitude: region.center.longitude + lonDiff
+        )
+        
+        return coordinate
+    }
 
     private func handleLongPressAtLocation(_ location: CGPoint) {
         // Convert screen coordinates to map coordinates
-        // This would require MapViewProxy in a real implementation
-        // For now, we'll use the center of the visible region
-        let coordinate = region.center
+        let coordinate = screenPointToCoordinate(location)
         let title = "Selected Location"
         setDestination(coordinate, title: title)
 
