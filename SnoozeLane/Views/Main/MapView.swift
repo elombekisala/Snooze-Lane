@@ -1,6 +1,7 @@
 import AudioToolbox
 import MapKit
 import SwiftUI
+import UIKit
 
 struct MapView: View {
     @Binding var mapState: MapViewState
@@ -248,61 +249,66 @@ struct MapView: View {
         .onChange(of: mapState) {
             handleMapStateChange()
         }
-        .onChange(of: locationManager.location) { newLocation in
-            handleLocationUpdate(newLocation)
-            
-            // Update polyline and annotations when location changes
-            if let newLocation = newLocation, selectedDestination != nil {
-                updatePolylineCoordinates()
-                // Force refresh of overlay positions
-                DispatchQueue.main.async {
-                    // Trigger overlay update
+                    .onChange(of: locationManager.location) { newLocation in
+                handleLocationUpdate(newLocation)
+                
+                // Update polyline and annotations when location changes
+                if let newLocation = newLocation, selectedDestination != nil {
+                    updatePolylineCoordinates()
                 }
             }
-        }
+            .onReceive(Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()) { _ in
+                // Update overlay positions periodically for smooth movement
+                if selectedDestination != nil {
+                    // Force overlay refresh
+                }
+            }
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
     }
-    
+
     // MARK: - Computed Views
-    
+
     @ViewBuilder
     private var mapOverlays: some View {
         ZStack {
             // Polyline overlay
             if polylineCoordinates.count >= 2,
-               let startPoint = coordinateToScreenPoint(polylineCoordinates[0]),
-               let endPoint = coordinateToScreenPoint(polylineCoordinates[1]) {
+                let startPoint = coordinateToScreenPoint(polylineCoordinates[0]),
+                let endPoint = coordinateToScreenPoint(polylineCoordinates[1])
+            {
                 Path { path in
                     path.move(to: startPoint)
                     path.addLine(to: endPoint)
                 }
                 .stroke(Color.blue, lineWidth: 4)
             }
-            
+
             // Destination annotation overlay
             if let destination = selectedDestination,
-               let screenPoint = coordinateToScreenPoint(destination) {
+                let screenPoint = coordinateToScreenPoint(destination)
+            {
                 Image(systemName: "mappin.circle.fill")
                     .foregroundColor(.red)
                     .font(.title)
                     .background(Circle().fill(.white))
                     .position(screenPoint)
             }
-            
+
             // Alarm radius circle overlay
             if let destination = selectedDestination, alarmDistance > 0,
-               let screenPoint = coordinateToScreenPoint(destination) {
+                let screenPoint = coordinateToScreenPoint(destination)
+            {
                 let circleSize = calculateCircleSize(for: alarmDistance)
-                
+
                 Circle()
                     .stroke(Color.orange, lineWidth: 2)
                     .background(Circle().fill(Color.orange.opacity(0.1)))
                     .frame(width: circleSize, height: circleSize)
                     .position(screenPoint)
                     .animation(.easeInOut(duration: 0.3), value: alarmDistance)
-                
+
                 Text("\(Int(alarmDistance))m")
                     .font(.caption)
                     .foregroundColor(.orange)
@@ -311,7 +317,7 @@ struct MapView: View {
                     .background(Color.white)
                     .cornerRadius(8)
                     .shadow(radius: 2)
-                    .position(x: screenPoint.x, y: screenPoint.y - circleSize/2 - 20)
+                    .position(x: screenPoint.x, y: screenPoint.y - circleSize / 2 - 20)
             }
         }
     }
@@ -470,43 +476,48 @@ struct MapView: View {
         }
     }
 
-        private func updateAlarmRadiusCircle() {
+    private func updateAlarmRadiusCircle() {
         guard let destination = selectedDestination else { return }
-        
+
         // Create a circle overlay for the alarm radius
         let circle = MKCircle(center: destination, radius: alarmDistance)
         alarmRadiusCircle = circle
-        
+
         // The circle will be drawn in the overlay using SwiftUI
         // The size and position are calculated based on the map's current zoom level
     }
-    
-    private func coordinateToScreenPoint(_ coordinate: CLLocationCoordinate2D) -> CGPoint? {
-        // For now, we'll use a simplified approach
-        // In a real implementation, you'd use MapViewProxy to convert coordinates
-        guard let userLocation = locationManager.location else { return nil }
+
+        private func coordinateToScreenPoint(_ coordinate: CLLocationCoordinate2D) -> CGPoint? {
+        // Calculate position relative to the current map region
+        let latDiff = coordinate.latitude - region.center.latitude
+        let lonDiff = coordinate.longitude - region.center.longitude
         
-        // Calculate relative position based on coordinate differences
-        let latDiff = coordinate.latitude - userLocation.coordinate.latitude
-        let lonDiff = coordinate.longitude - userLocation.coordinate.longitude
+        // Convert coordinate differences to screen points
+        // Use the map's current span to determine scale
+        let latScale = UIScreen.main.bounds.height / region.span.latitudeDelta
+        let lonScale = UIScreen.main.bounds.width / region.span.longitudeDelta
         
-        // Convert to screen coordinates (simplified)
-        // This is a basic approximation - in production you'd use proper coordinate conversion
-        let screenWidth: CGFloat = 400  // Approximate map view width
-        let screenHeight: CGFloat = 600 // Approximate map view height
-        
-        let x = screenWidth / 2 + CGFloat(lonDiff * 1000000) // Scale factor for longitude
-        let y = screenHeight / 2 - CGFloat(latDiff * 1000000) // Scale factor for latitude
+        let x = UIScreen.main.bounds.width / 2 + CGFloat(lonDiff * Double(lonScale))
+        let y = UIScreen.main.bounds.height / 2 - CGFloat(latDiff * Double(latScale))
         
         return CGPoint(x: x, y: y)
     }
-    
+
     private func calculateCircleSize(for radius: Double) -> CGFloat {
-        // Calculate circle size based on alarm radius and map zoom
-        // This is a simplified calculation - in production you'd use proper scale factors
-        let baseSize: CGFloat = 50
-        let scaleFactor = radius / 100.0 // Scale based on 100m = 50 points
-        return baseSize * CGFloat(scaleFactor)
+        // Calculate circle size based on alarm radius and current map zoom
+        // Use the map's current span to determine proper scale
+        let latScale = UIScreen.main.bounds.height / region.span.latitudeDelta
+        let lonScale = UIScreen.main.bounds.width / region.span.longitudeDelta
+        
+        // Use the smaller scale to ensure circle fits in view
+        let scale = min(latScale, lonScale)
+        
+        // Convert radius from meters to screen points
+        // 1 degree of latitude ≈ 111,000 meters
+        let metersPerDegree = 111000.0
+        let radiusInDegrees = radius / metersPerDegree
+        
+        return CGFloat(radiusInDegrees * Double(scale))
     }
 
     private func scaleMapToShowBothLocations() {
@@ -544,7 +555,7 @@ struct MapView: View {
         let destinationLocation = CLLocation(
             latitude: destination.latitude, longitude: destination.longitude)
         let distance = userLocation.distance(from: destinationLocation)
-        
+
         // Ensure we return a valid distance
         return distance.isFinite ? distance : nil
     }
