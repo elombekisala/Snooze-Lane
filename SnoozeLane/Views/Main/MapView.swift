@@ -151,12 +151,12 @@ struct MapView: View {
                     let coordinate = screenPointToCoordinate(location)
                     let title = "Custom Location"
                     setDestination(coordinate, title: title)
-                    
+
                     // Update map state
                     withAnimation(.easeInOut(duration: 0.3)) {
                         mapState = .locationSelected
                     }
-                    
+
                     // Provide haptic feedback
                     provideHapticFeedback()
                 }
@@ -847,8 +847,8 @@ struct MapView: View {
         AudioServicesPlaySystemSound(1104)  // Light impact sound
     }
 
-        // MARK: - Distance and Time Calculations
-    
+    // MARK: - Distance and Time Calculations
+
     func formatDistance(_ distance: Double) -> String {
         if useMetricSystem {
             // Metric: show meters or kilometers
@@ -996,16 +996,26 @@ struct AlarmSettingsCard: View {
                     onStartTrip()
                 }
                 .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(mapState.accentColor)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.blue)
+                        .shadow(color: .blue.opacity(0.4), radius: 4, x: 0, y: 2)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white, lineWidth: 2)
+                )
                 .cornerRadius(20)
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                                        Text("Distance: \(formatDistance(alarmDistance))")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
+                Text("Distance: \(formatDistance(alarmDistance))")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
 
                 Slider(value: $alarmDistance, in: 100...1000, step: 50)
                     .accentColor(mapState.accentColor)
@@ -1022,7 +1032,7 @@ struct AlarmSettingsCard: View {
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
-    
+
     private func formatDistance(_ distance: Double) -> String {
         if useMetricSystem {
             // Metric: show meters or kilometers
