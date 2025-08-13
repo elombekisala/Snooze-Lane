@@ -3,6 +3,30 @@ import MapKit
 import SwiftUI
 import UIKit
 
+// MARK: - Enums
+
+enum TransportationMode: String, CaseIterable {
+    case car = "car"
+    case bus = "bus"
+    case train = "train"
+    
+    var averageSpeed: Double { // km/h
+        switch self {
+        case .car: return 60.0
+        case .bus: return 25.0
+        case .train: return 80.0
+        }
+    }
+    
+    var displayName: String {
+        switch self {
+        case .car: return "Car"
+        case .bus: return "Bus"
+        case .train: return "Train"
+        }
+    }
+}
+
 struct MapView: View {
     @Binding var mapState: MapViewState
     @Binding var alarmDistance: Double
@@ -40,6 +64,8 @@ struct MapView: View {
     @State private var longPressLocation: CGPoint = .zero
     @State private var isLongPressing: Bool = false
     @State private var longPressTimer: Timer?
+    @State private var useMetricSystem: Bool = UserDefaults.standard.bool(forKey: "useMetricSystem")
+    @State private var transportationMode: TransportationMode = .car
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -55,6 +81,54 @@ struct MapView: View {
             .overlay(
                 // Map overlays
                 mapOverlays
+            )
+            .overlay(
+                // Estimated Rest Time Display - Top Center (during trip and alarm stages)
+                Group {
+                    if mapState.shouldShowTripProgress || mapState.shouldShowAlarmSettings {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 4) {
+                                    HStack(spacing: 8) {
+                                        Text("Estimated Rest Time")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.8))
+                                        
+                                        // Transportation mode picker
+                                        Menu {
+                                            ForEach(TransportationMode.allCases, id: \.self) { mode in
+                                                Button(mode.displayName) {
+                                                    transportationMode = mode
+                                                }
+                                            }
+                                        } label: {
+                                            Image(systemName: "\(transportationMode.rawValue).fill")
+                                                .foregroundColor(.white)
+                                                .font(.caption)
+                                        }
+                                    }
+                                    
+                                    Text(calculateEstimatedRestTime())
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.black.opacity(0.7))
+                                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                )
+                                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 2)
+                                Spacer()
+                            }
+                            .padding(.top, 60) // Account for status bar
+                            Spacer()
+                        }
+                    }
+                }
             )
             .onTapGesture(count: 1) {
                 // Single tap to place a pin or clear selection
@@ -103,6 +177,10 @@ struct MapView: View {
                 if selectedDestination != nil {
                     updateAlarmRadiusCircle()
                 }
+            }
+            .onChange(of: useMetricSystem) { newValue in
+                // Save metric preference to UserDefaults
+                UserDefaults.standard.set(newValue, forKey: "useMetricSystem")
             }
 
             // Top Controls - Pinned to top right (State-based visibility)
@@ -191,6 +269,28 @@ struct MapView: View {
                             .shadow(radius: 2)
                             .transition(.opacity.combined(with: .scale))
                     }
+
+                    // Metric/Imperial Toggle Button
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            useMetricSystem.toggle()
+                        }
+                    }) {
+                        Text(useMetricSystem ? "km" : "mi")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(useMetricSystem ? Color.blue : Color.orange)
+                                    .shadow(
+                                        color: (useMetricSystem ? Color.blue : Color.orange).opacity(0.3),
+                                        radius: 4, x: 0, y: 2
+                                    )
+                            )
+                    }
+                    .transition(.scale.combined(with: .opacity))
 
                     // Settings Button
                     Button(action: {
@@ -733,6 +833,48 @@ struct MapView: View {
         // Simple haptic feedback using system sound
         // In a real app, you'd use UIImpactFeedbackGenerator
         AudioServicesPlaySystemSound(1104)  // Light impact sound
+    }
+    
+    // MARK: - Distance and Time Calculations
+    
+    private func formatDistance(_ distance: Double) -> String {
+        if useMetricSystem {
+            // Metric: show meters or kilometers
+            if distance >= 1000 {
+                let kilometers = distance / 1000
+                return String(format: "%.2f km", kilometers)
+            } else {
+                return String(format: "%.0f m", distance)
+            }
+        } else {
+            // Imperial: show feet or miles with 0.01 precision
+            let feet = distance * 3.28084
+            if feet >= 5280 { // 1 mile = 5280 feet
+                let miles = feet / 5280
+                return String(format: "%.2f mi", miles)
+            } else {
+                return String(format: "%.0f ft", feet)
+            }
+        }
+    }
+    
+    private func calculateEstimatedRestTime() -> String {
+        guard let destination = selectedDestination,
+              let userLocation = locationManager.location else {
+            return "00:00"
+        }
+        
+        let distance = userLocation.distance(from: CLLocation(latitude: destination.latitude, longitude: destination.longitude))
+        let distanceInKm = distance / 1000
+        
+        // Calculate time based on transportation mode average speed
+        let timeInHours = distanceInKm / transportationMode.averageSpeed
+        let timeInMinutes = Int(timeInHours * 60)
+        
+        let hours = timeInMinutes / 60
+        let minutes = timeInMinutes % 60
+        
+        return String(format: "%02d:%02d", hours, minutes)
     }
 
     private func startLocationUpdateTimer() {
