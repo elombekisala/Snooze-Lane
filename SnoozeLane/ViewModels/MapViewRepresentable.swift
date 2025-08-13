@@ -143,18 +143,21 @@ extension MapViewRepresentable {
             isFollowingUser.wrappedValue = true
         }
 
-        func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
-            // Update circle overlay
-            if let existingOverlay = circleOverlay {
-                parent.mapView.removeOverlay(existingOverlay)
-            }
-            let circle = MKCircle(center: coordinate, radius: radius)
-            parent.mapView.addOverlay(circle)
-            circleOverlay = circle
-
-            // Update user to destination line
-            updateUserToDestinationLine()
+            func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
+        // Update circle overlay
+        if let existingOverlay = circleOverlay {
+            parent.mapView.removeOverlay(existingOverlay)
         }
+        let circle = MKCircle(center: coordinate, radius: radius)
+        parent.mapView.addOverlay(circle)
+        circleOverlay = circle
+
+        // Update user to destination line
+        updateUserToDestinationLine()
+        
+        // Set up continuous polyline updates when user location changes
+        setupContinuousPolylineUpdates()
+    }
 
         private func updateUserToDestinationLine() {
             if let existingLine = userToDestinationLine {
@@ -165,9 +168,15 @@ extension MapViewRepresentable {
                 let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
             else { return }
 
+            // Always use the most current user location for the polyline start
             let polyline = MKPolyline(coordinates: [userLocation, destination], count: 2)
             parent.mapView.addOverlay(polyline)
             userToDestinationLine = polyline
+            
+            // Debug: Log polyline coordinates for verification
+            print("🔄 POLYLINE UPDATED:")
+            print("   📍 Start (User): \(userLocation.latitude), \(userLocation.longitude)")
+            print("   🎯 End (Destination): \(destination.latitude), \(destination.longitude)")
         }
 
         @objc func handleLongPress(gestureRecognizer: UILongPressGestureRecognizer) {
@@ -319,5 +328,23 @@ extension MapViewRepresentable {
                 parent.showingDetails = true
             }
         }
+        
+        // MARK: - Continuous Polyline Updates
+        private func setupContinuousPolylineUpdates() {
+            // Remove existing notification observer to avoid duplicates
+            NotificationCenter.default.removeObserver(self, name: .didUpdateLocation, object: nil)
+            
+            // Add notification observer for location updates
+            NotificationCenter.default.addObserver(
+                forName: .didUpdateLocation,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                // Update polyline whenever user location changes
+                self?.updateUserToDestinationLine()
+            }
+        }
+        
+
     }
 }
