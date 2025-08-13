@@ -39,6 +39,7 @@ struct MapView: View {
     @State private var mapViewSize: CGSize = .zero
     @State private var longPressLocation: CGPoint = .zero
     @State private var isLongPressing: Bool = false
+    @State private var longPressTimer: Timer?
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -68,11 +69,26 @@ struct MapView: View {
                 }
             }
             .gesture(
-                LongPressGesture(minimumDuration: 0.5)
-                    .onEnded { _ in
-                        // For now, we'll use the center of the current map view
-                        // The coordinate conversion function is ready for future use
-                        handleLongPress()
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        // Track the location of the drag
+                        longPressLocation = value.location
+                        
+                        // Start long press timer if not already started
+                        if longPressTimer == nil {
+                            longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                                // This is a long press - trigger the action
+                                DispatchQueue.main.async {
+                                    handleLongPressAtLocation(longPressLocation)
+                                    longPressTimer = nil
+                                }
+                            }
+                        }
+                    }
+                    .onEnded { value in
+                        // Cancel the long press timer
+                        longPressTimer?.invalidate()
+                        longPressTimer = nil
                     }
             )
             .simultaneousGesture(
@@ -424,31 +440,31 @@ struct MapView: View {
         // Provide haptic feedback
         provideHapticFeedback()
     }
-    
+
     private func screenPointToCoordinate(_ screenPoint: CGPoint) -> CLLocationCoordinate2D {
         // Convert screen coordinates to map coordinates
         // This is the inverse of coordinateToScreenPoint
-        
+
         let screenWidth = UIScreen.main.bounds.width
         let screenHeight = UIScreen.main.bounds.height
-        
+
         // Calculate the offset from center of screen
         let xOffset = screenPoint.x - screenWidth / 2
         let yOffset = screenPoint.y - screenHeight / 2
-        
+
         // Convert offset to coordinate differences using current map scale
         let lonScale = region.span.longitudeDelta / screenWidth
         let latScale = region.span.latitudeDelta / screenHeight
-        
+
         let lonDiff = Double(xOffset) * lonScale
         let latDiff = -Double(yOffset) * latScale  // Negative because screen Y increases downward
-        
+
         // Calculate the actual coordinate
         let coordinate = CLLocationCoordinate2D(
             latitude: region.center.latitude + latDiff,
             longitude: region.center.longitude + lonDiff
         )
-        
+
         return coordinate
     }
 
