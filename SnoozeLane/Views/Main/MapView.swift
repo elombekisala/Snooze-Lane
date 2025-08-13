@@ -1,6 +1,6 @@
+import AudioToolbox
 import MapKit
 import SwiftUI
-import AudioToolbox
 
 struct MapView: View {
     @Binding var mapState: MapViewState
@@ -21,7 +21,7 @@ struct MapView: View {
     @State private var showMapControls = true
     @State private var showSettings = false
     @State private var mapType: MKMapType = .standard
-    
+
     // Navigation state
     @State private var selectedDestination: CLLocationCoordinate2D?
     @State private var polylineCoordinates: [CLLocationCoordinate2D] = []
@@ -29,18 +29,19 @@ struct MapView: View {
     @State private var locationUpdateTimer: Timer?
     @State private var destinationAnnotation: MKPointAnnotation?
     @State private var routePolyline: MKPolyline?
-    
+
     // Map interaction state
     @State private var isMapInteracting = false
     @State private var lastUserLocation: CLLocation?
+    @State private var userTrackingMode: MapUserTrackingMode = .follow
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // Map with polyline and annotations
             Map(
-                coordinateRegion: $region, 
+                coordinateRegion: $region,
                 showsUserLocation: true,
-                userTrackingMode: .constant(.follow)
+                userTrackingMode: $userTrackingMode
             )
             .mapStyle(mapType == .standard ? .standard : mapType == .satellite ? .imagery : .hybrid)
             .ignoresSafeArea()
@@ -56,13 +57,13 @@ struct MapView: View {
                             // For now, using placeholder points
                             let startPoint = CGPoint(x: 100, y: 300)
                             let endPoint = CGPoint(x: 300, y: 300)
-                            
+
                             path.move(to: startPoint)
                             path.addLine(to: endPoint)
                         }
                         .stroke(Color.blue, lineWidth: 4)
                     }
-                    
+
                     // Destination annotation
                     if let destination = selectedDestination {
                         Image(systemName: "mappin.circle.fill")
@@ -70,7 +71,7 @@ struct MapView: View {
                             .font(.title)
                             .background(Circle().fill(.white))
                             .position(
-                                x: 300, y: 300 // Placeholder position
+                                x: 300, y: 300  // Placeholder position
                             )
                     }
                 }
@@ -84,6 +85,24 @@ struct MapView: View {
                     .onEnded { _ in
                         // Handle long press for destination selection
                         handleLongPress()
+                    }
+            )
+            .onChange(of: userTrackingMode) { newMode in
+                // Handle user tracking mode changes
+                if newMode == .none {
+                    // Provide subtle haptic feedback when tracking stops
+                    AudioServicesPlaySystemSound(1103) // Light tap sound
+                }
+            }
+            .gesture(
+                DragGesture()
+                    .onChanged { _ in
+                        // User is dragging the map
+                        if userTrackingMode == .follow {
+                            userTrackingMode = .none
+                            // Provide subtle haptic feedback when tracking stops
+                            AudioServicesPlaySystemSound(1103) // Light tap sound
+                        }
                     }
             )
 
@@ -110,21 +129,59 @@ struct MapView: View {
 
                     // Location Button
                     Button(action: {
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            // Brief flash effect
+                        }
                         centerOnUserLocation()
                     }) {
-                        Image(systemName: "location.fill")
+                        Image(systemName: userTrackingMode == .follow ? "location.fill" : "location")
                             .font(.title2)
-                            .foregroundColor(mapState.accentColor)
+                            .foregroundColor(userTrackingMode == .follow ? mapState.accentColor : .blue)
                             .frame(width: 44, height: 44)
                             .background(
                                 Circle()
                                     .fill(Color.white)
                                     .shadow(
-                                        color: mapState.accentColor.opacity(0.3), radius: 4, x: 0,
-                                        y: 2)
+                                        color: userTrackingMode == .follow ? mapState.accentColor.opacity(0.3) : .blue.opacity(0.3), 
+                                        radius: 4, x: 0, y: 2
+                                    )
                             )
                     }
                     .transition(.scale.combined(with: .opacity))
+                    .scaleEffect(userTrackingMode == .follow ? 1.0 : 1.1)
+                    .overlay(
+                        // Active state indicator when not following
+                        Circle()
+                            .stroke(userTrackingMode == .follow ? Color.clear : Color.blue, lineWidth: 2)
+                            .scaleEffect(userTrackingMode == .follow ? 1.0 : 1.2)
+                            .opacity(userTrackingMode == .follow ? 0.0 : 0.8)
+                    )
+                    .overlay(
+                        // Pulsing animation when not following
+                        Circle()
+                            .stroke(userTrackingMode == .follow ? Color.clear : Color.blue.opacity(0.3), lineWidth: 1)
+                            .scaleEffect(userTrackingMode == .follow ? 1.0 : 1.4)
+                            .opacity(userTrackingMode == .follow ? 0.0 : 0.6)
+                            .animation(
+                                userTrackingMode == .follow ? nil : 
+                                Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true),
+                                value: userTrackingMode
+                            )
+                    )
+                    .animation(.easeInOut(duration: 0.2), value: userTrackingMode)
+                    
+                    // Tooltip when not following
+                    if userTrackingMode != .follow {
+                        Text("Tap to follow")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .shadow(radius: 2)
+                            .transition(.opacity.combined(with: .scale))
+                    }
 
                     // Settings Button
                     Button(action: {
@@ -167,7 +224,7 @@ struct MapView: View {
                 // Alarm Settings Card (when setting alarm radius)
                 if mapState.shouldShowAlarmSettings {
                     AlarmSettingsCard(
-                        alarmDistance: $alarmDistance, 
+                        alarmDistance: $alarmDistance,
                         mapState: $mapState,
                         onStartTrip: startTrip
                     )
@@ -199,9 +256,9 @@ struct MapView: View {
             SettingsView()
         }
     }
-    
+
     // MARK: - Computed Properties
-    
+
     private var mapTypeIcon: String {
         switch mapType {
         case .standard:
@@ -216,9 +273,9 @@ struct MapView: View {
             return "map"
         }
     }
-    
+
     // MARK: - Public Functions
-    
+
     func setDestinationFromSearch(_ coordinate: CLLocationCoordinate2D, title: String) {
         setDestination(coordinate, title: title)
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -226,19 +283,19 @@ struct MapView: View {
         }
         scaleMapToShowBothLocations()
     }
-    
+
     // MARK: - Private Functions
-    
+
     private func setupLocationUpdates() {
         locationManager.startUpdatingLocation()
         startLocationUpdateTimer()
-        
+
         // Center on user location initially
         if let userLocation = locationManager.location {
             centerOnLocation(userLocation)
         }
     }
-    
+
     private func cycleMapType() {
         switch mapType {
         case .standard:
@@ -249,62 +306,67 @@ struct MapView: View {
             mapType = .standard
         case .satelliteFlyover:
             mapType = .standard
+        case .hybridFlyover:
+            mapType = .standard
         @unknown default:
             mapType = .standard
         }
     }
-    
-    private func centerOnUserLocation() {
+
+        private func centerOnUserLocation() {
         guard let userLocation = locationManager.location else { return }
         centerOnLocation(userLocation)
+        
+        // Reset user tracking mode to follow
+        userTrackingMode = .follow
         
         // Provide haptic feedback
         provideHapticFeedback()
     }
-    
+
     private func centerOnLocation(_ location: CLLocation) {
         let newRegion = MKCoordinateRegion(
             center: location.coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
         )
-        
+
         withAnimation(.easeInOut(duration: 0.5)) {
             region = newRegion
         }
     }
-    
+
     private func handleLongPress() {
         // Use the center of the current map view as the destination
         let coordinate = region.center
         let title = "Selected Location"
         setDestination(coordinate, title: title)
-        
+
         // Update map state to show location details
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .locationSelected
         }
-        
+
         // Scale map to show both user location and destination
         scaleMapToShowBothLocations()
-        
+
         // Provide haptic feedback
         provideHapticFeedback()
     }
 
     private func setDestination(_ coordinate: CLLocationCoordinate2D, title: String) {
         selectedDestination = coordinate
-        
+
         // Create destination annotation
         let annotation = MKPointAnnotation()
         annotation.coordinate = coordinate
         annotation.title = title
         destinationAnnotation = annotation
-        
+
         // Update polyline coordinates
         updatePolylineCoordinates()
-        
+
         isNavigating = true
-        
+
         // Notify parent view
         onDestinationSelected?(coordinate, title)
     }
@@ -314,149 +376,155 @@ struct MapView: View {
         destinationAnnotation = nil
         polylineCoordinates = []
         isNavigating = false
-        
+
         // Reset map state
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .noInput
         }
-        
+
         // Stop location updates
         stopLocationUpdateTimer()
     }
-    
+
     private func updatePolylineCoordinates() {
         guard let userLocation = locationManager.location,
-              let destination = selectedDestination else { return }
-        
+            let destination = selectedDestination
+        else { return }
+
         // Create polyline from user location to destination
         polylineCoordinates = [
             userLocation.coordinate,
-            destination
+            destination,
         ]
-        
+
         // Scale map to show both locations if not interacting
         if !isMapInteracting {
             scaleMapToShowBothLocations()
         }
     }
-    
+
     private func scaleMapToShowBothLocations() {
         guard let userLocation = locationManager.location,
-              let destination = selectedDestination else { return }
-        
+            let destination = selectedDestination
+        else { return }
+
         // Calculate the region that includes both locations
         let centerLat = (userLocation.coordinate.latitude + destination.latitude) / 2
         let centerLon = (userLocation.coordinate.longitude + destination.longitude) / 2
-        
+
         let latDelta = abs(userLocation.coordinate.latitude - destination.latitude) * 1.5
         let lonDelta = abs(userLocation.coordinate.longitude - destination.longitude) * 1.5
-        
+
         // Ensure minimum zoom level
         let minDelta = 0.01
         let finalLatDelta = max(latDelta, minDelta)
         let finalLonDelta = max(lonDelta, minDelta)
-        
+
         let newRegion = MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
             span: MKCoordinateSpan(latitudeDelta: finalLatDelta, longitudeDelta: finalLonDelta)
         )
-        
+
         withAnimation(.easeInOut(duration: 0.5)) {
             region = newRegion
         }
     }
-    
+
     private func calculateDistanceToDestination() -> Double? {
         guard let userLocation = locationManager.location,
-              let destination = selectedDestination else { return nil }
-        
-        let destinationLocation = CLLocation(latitude: destination.latitude, longitude: destination.longitude)
+            let destination = selectedDestination
+        else { return nil }
+
+        let destinationLocation = CLLocation(
+            latitude: destination.latitude, longitude: destination.longitude)
         return userLocation.distance(from: destinationLocation)
     }
-    
+
     private func startTrip() {
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .tripInProgress
         }
-        
+
         // Start monitoring for destination approach
         startDestinationMonitoring()
-        
+
         // Provide haptic feedback
         provideHapticFeedback()
     }
-    
+
     private func endTrip() {
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .noInput
         }
-        
+
         clearDestination()
-        
+
         // Provide haptic feedback
         provideHapticFeedback()
     }
-    
+
     private func startDestinationMonitoring() {
         guard let destination = selectedDestination else { return }
-        
+
         // Create a location from the destination coordinate
-        let destinationLocation = CLLocation(latitude: destination.latitude, longitude: destination.longitude)
-        
+        let destinationLocation = CLLocation(
+            latitude: destination.latitude, longitude: destination.longitude)
+
         // Start monitoring using the LocationManager's custom method
         locationManager.startMonitoring(destinationLocation, radius: alarmDistance)
     }
-    
+
     private func handleMapStateChange() {
         withAnimation(.easeInOut(duration: 0.3)) {
             showTopControls = mapState.shouldShowTopControls
             showMapControls = mapState.shouldShowMapControls
         }
     }
-    
+
     private func handleLocationUpdate(_ newLocation: CLLocation?) {
         guard let newLocation = newLocation else { return }
-        
+
         lastUserLocation = newLocation
-        
+
         // Update polyline when user location changes
         if isNavigating {
             updatePolylineCoordinates()
         }
-        
+
         // Check if user has reached destination
         if mapState == .tripInProgress {
             checkDestinationReached(newLocation)
         }
     }
-    
+
     private func checkDestinationReached(_ location: CLLocation) {
         guard let destination = selectedDestination else { return }
-        
-        let destinationLocation = CLLocation(latitude: destination.latitude, longitude: destination.longitude)
+
+        let destinationLocation = CLLocation(
+            latitude: destination.latitude, longitude: destination.longitude)
         let distance = location.distance(from: destinationLocation)
-        
+
         if distance <= alarmDistance {
             // Destination reached!
             destinationReached()
         }
     }
-    
+
     private func destinationReached() {
         // Provide haptic feedback
         provideHapticFeedback()
-        
+
         // Show alert or notification
         // For now, just end the trip
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             endTrip()
         }
     }
-    
+
     private func provideHapticFeedback() {
         // Simple haptic feedback using system sound
         // In a real app, you'd use UIImpactFeedbackGenerator
-        AudioServicesPlaySystemSound(1104) // Light impact sound
+        AudioServicesPlaySystemSound(1104)  // Light impact sound
     }
 
     private func startLocationUpdateTimer() {
@@ -467,7 +535,7 @@ struct MapView: View {
             }
         }
     }
-    
+
     private func stopLocationUpdateTimer() {
         locationUpdateTimer?.invalidate()
         locationUpdateTimer = nil
@@ -521,12 +589,12 @@ struct LocationDetailsCard: View {
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
-    
+
     private func formatDistance(_ distance: Double) -> String {
         let formatter = MeasurementFormatter()
         formatter.unitOptions = .providedUnit
         formatter.numberFormatter.maximumFractionDigits = 1
-        
+
         if distance >= 1000 {
             let kilometers = Measurement(value: distance / 1000, unit: UnitLength.kilometers)
             return formatter.string(from: kilometers)
@@ -630,12 +698,12 @@ struct TripProgressCard: View {
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
-    
+
     private func formatDistance(_ distance: Double) -> String {
         let formatter = MeasurementFormatter()
         formatter.unitOptions = .providedUnit
         formatter.numberFormatter.maximumFractionDigits = 1
-        
+
         if distance >= 1000 {
             let kilometers = Measurement(value: distance / 1000, unit: UnitLength.kilometers)
             return formatter.string(from: kilometers)
@@ -656,6 +724,9 @@ struct TripProgressCard: View {
         }
     )
     .environmentObject(LocationSearchViewModel(locationManager: LocationManager()))
-    .environmentObject(TripProgressViewModel(locationViewModel: LocationSearchViewModel(locationManager: LocationManager())))
+    .environmentObject(
+        TripProgressViewModel(
+            locationViewModel: LocationSearchViewModel(locationManager: LocationManager()))
+    )
     .environmentObject(LocationManager())
 }

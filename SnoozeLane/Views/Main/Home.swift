@@ -1,7 +1,7 @@
+import AudioToolbox
 import Combine
 import MapKit
 import SwiftUI
-import AudioToolbox
 
 struct Home: View {
     @State private var mapState: MapViewState = .noInput
@@ -16,17 +16,17 @@ struct Home: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-                            // Main Map View - Full Screen Background
-                MapView(
-                    mapState: $mapState,
-                    alarmDistance: $alarmDistance,
-                    showLocationSearch: $showSearchModal,
-                    onDestinationSelected: { coordinate, title in
-                        // Handle destination selection from MapView
-                        handleDestinationSelected(coordinate: coordinate, title: title)
-                    }
-                )
-                .environmentObject(locationManager)
+            // Main Map View - Full Screen Background
+            MapView(
+                mapState: $mapState,
+                alarmDistance: $alarmDistance,
+                showLocationSearch: $showSearchModal,
+                onDestinationSelected: { coordinate, title in
+                    // Handle destination selection from MapView
+                    handleDestinationSelected(coordinate: coordinate, title: title)
+                }
+            )
+            .environmentObject(locationManager)
 
             // Floating Search Bar at the Bottom (State-based visibility)
             if mapState.shouldShowSearchBar {
@@ -125,53 +125,58 @@ struct Home: View {
                             .foregroundColor(.white)
                             .padding(.horizontal)
 
-                                                            // Home
-                                    QuickDestinationButton(
-                                        title: "Home",
-                                        subtitle: "123 Main St",
-                                        icon: "house.fill",
-                                        color: Color.blue
-                                    ) {
-                                        // Set destination to home coordinates
-                                        let homeCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
-                                        handleDestinationSelected(coordinate: homeCoordinate, title: "Home")
-                                    }
+                        // Home
+                        QuickDestinationButton(
+                            title: "Home",
+                            subtitle: "123 Main St",
+                            icon: "house.fill",
+                            color: Color.blue
+                        ) {
+                            // Set destination to home coordinates
+                            let homeCoordinate = CLLocationCoordinate2D(
+                                latitude: 37.7749, longitude: -122.4194)
+                            handleDestinationSelected(coordinate: homeCoordinate, title: "Home")
+                        }
 
-                                                            // Work
-                                    QuickDestinationButton(
-                                        title: "Work",
-                                        subtitle: "456 Office Rd",
-                                        icon: "briefcase.fill",
-                                        color: Color.green
-                                    ) {
-                                        // Set destination to work coordinates
-                                        let workCoordinate = CLLocationCoordinate2D(latitude: 37.7849, longitude: -122.4094)
-                                        handleDestinationSelected(coordinate: workCoordinate, title: "Work")
-                                    }
+                        // Work
+                        QuickDestinationButton(
+                            title: "Work",
+                            subtitle: "456 Office Rd",
+                            icon: "briefcase.fill",
+                            color: Color.green
+                        ) {
+                            // Set destination to work coordinates
+                            let workCoordinate = CLLocationCoordinate2D(
+                                latitude: 37.7849, longitude: -122.4094)
+                            handleDestinationSelected(coordinate: workCoordinate, title: "Work")
+                        }
 
-                                                            // Gym
-                                    QuickDestinationButton(
-                                        title: "Gym",
-                                        subtitle: "Fitness Center",
-                                        icon: "dumbbell.fill",
-                                        color: Color.purple
-                                    ) {
-                                        // Set destination to gym coordinates
-                                        let gymCoordinate = CLLocationCoordinate2D(latitude: 37.7649, longitude: -122.4294)
-                                        handleDestinationSelected(coordinate: gymCoordinate, title: "Gym")
-                                    }
+                        // Gym
+                        QuickDestinationButton(
+                            title: "Gym",
+                            subtitle: "Fitness Center",
+                            icon: "dumbbell.fill",
+                            color: Color.purple
+                        ) {
+                            // Set destination to gym coordinates
+                            let gymCoordinate = CLLocationCoordinate2D(
+                                latitude: 37.7649, longitude: -122.4294)
+                            handleDestinationSelected(coordinate: gymCoordinate, title: "Gym")
+                        }
 
-                                                            // Grocery Store
-                                    QuickDestinationButton(
-                                        title: "Grocery Store",
-                                        subtitle: "Supermarket",
-                                        icon: "cart.fill",
-                                        color: Color.orange
-                                    ) {
-                                        // Set destination to grocery store coordinates
-                                        let groceryCoordinate = CLLocationCoordinate2D(latitude: 37.7549, longitude: -122.4394)
-                                        handleDestinationSelected(coordinate: groceryCoordinate, title: "Grocery Store")
-                                    }
+                        // Grocery Store
+                        QuickDestinationButton(
+                            title: "Grocery Store",
+                            subtitle: "Supermarket",
+                            icon: "cart.fill",
+                            color: Color.orange
+                        ) {
+                            // Set destination to grocery store coordinates
+                            let groceryCoordinate = CLLocationCoordinate2D(
+                                latitude: 37.7549, longitude: -122.4394)
+                            handleDestinationSelected(
+                                coordinate: groceryCoordinate, title: "Grocery Store")
+                        }
                     }
                     .padding(.top)
                 } else {
@@ -210,29 +215,29 @@ struct Home: View {
             .presentationDetents([.medium, .large])
         }
     }
-    
+
     // MARK: - Helper Functions
-    
+
     private func provideHapticFeedback() {
         // Simple haptic feedback using system sound
-        AudioServicesPlaySystemSound(1104) // Light impact sound
+        AudioServicesPlaySystemSound(1104)  // Light impact sound
     }
-    
+
     private func handleDestinationSelected(coordinate: CLLocationCoordinate2D, title: String) {
         // Close the search modal if it's open
         showSearchModal = false
-        
+
         // Update the map state to show location details
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .locationSelected
         }
-        
+
         // Provide haptic feedback
         provideHapticFeedback()
-        
+
         print("Destination selected: \(title) at \(coordinate)")
     }
-            }
+}
 
 // Simple Quick Destination Button
 struct QuickDestinationButton: View {
@@ -287,8 +292,9 @@ extension View {
     func placeholder<Content: View>(
         when shouldShow: Bool,
         alignment: Alignment = .leading,
-        @ViewBuilder placeholder: () -> Content) -> some View {
-        
+        @ViewBuilder placeholder: () -> Content
+    ) -> some View {
+
         ZStack(alignment: alignment) {
             placeholder().opacity(shouldShow ? 1 : 0)
             self
