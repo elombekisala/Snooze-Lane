@@ -11,6 +11,15 @@ class LocationSearchViewModel: NSObject, ObservableObject {
 
     @Published var results = [MKLocalSearchCompletion]()
     @Published var selectedSnoozeLaneLocation: SnoozeLaneLocation?
+    
+    // Store coordinates for each search result as they're fetched
+    private var resultCoordinates: [String: CLLocationCoordinate2D] = [:]
+    
+    // Get stored coordinates for a specific search result
+    func getCoordinateForResult(_ result: MKLocalSearchCompletion) -> CLLocationCoordinate2D? {
+        let resultKey = "\(result.title)_\(result.subtitle)"
+        return resultCoordinates[resultKey]
+    }
 
     @Published var pickUpTime: String?
     @Published var dropOffTime: String?
@@ -210,6 +219,61 @@ class LocationSearchViewModel: NSObject, ObservableObject {
         print("   📍 Title: \(localSearch.title)")
         print("   📍 Subtitle: \(localSearch.subtitle)")
 
+        // Check if we already have coordinates for this result
+        let resultKey = "\(localSearch.title)_\(localSearch.subtitle)"
+        if let storedCoordinate = resultCoordinates[resultKey] {
+            print("✅ Using stored coordinates for '\(localSearch.title)':")
+            print("   📍 Lat: \(storedCoordinate.latitude)")
+            print("   📍 Lon: \(storedCoordinate.longitude)")
+            
+            // Create the location directly with stored coordinates
+            self.selectedSnoozeLaneLocation = SnoozeLaneLocation(
+                title: localSearch.title,
+                subtitle: localSearch.subtitle,
+                coordinate: storedCoordinate,
+                placemark: MKPlacemark(coordinate: storedCoordinate)
+            )
+            
+            // Post notification to add destination annotation to the map
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .addDestinationAnnotation,
+                    object: nil,
+                    userInfo: [
+                        "coordinate": storedCoordinate, "title": localSearch.title,
+                        "subtitle": localSearch.subtitle,
+                    ]
+                )
+            }
+            
+            // Get route if we have current location
+            if let currentLocation = self.getCurrentLocation() {
+                let sourceCoordinate = CLLocationCoordinate2D(
+                    latitude: currentLocation.coordinate.latitude,
+                    longitude: currentLocation.coordinate.longitude)
+                let destinationCoordinate = CLLocationCoordinate2D(
+                    latitude: storedCoordinate.latitude,
+                    longitude: storedCoordinate.longitude)
+
+                self.getDestinationRoute(from: sourceCoordinate, to: destinationCoordinate) {
+                    route, distance, error in
+                    if let error = error {
+                        print("DEBUG: Failed to get destination route with error \(error.localizedDescription)")
+                        return
+                    }
+                    guard let route = route, let distance = distance else { return }
+
+                    self.distance = distance
+                    self.destinationRoute = route
+                    self.locationUpdated()
+                }
+            }
+            
+            return
+        }
+        
+        // Fallback: If no stored coordinates, do the search (this shouldn't happen now)
+        print("⚠️ No stored coordinates found, falling back to search...")
         let searchRequest = MKLocalSearch.Request(completion: localSearch)
         let search = MKLocalSearch(request: searchRequest)
 
@@ -389,14 +453,18 @@ extension LocationSearchViewModel: MKLocalSearchCompleterDelegate {
                     return
                 }
                 
-                if let item = response?.mapItems.first {
-                    let coordinate = item.placemark.coordinate
-                    print("      ✅ Coordinates for '\(result.title)':")
-                    print("         📍 Lat: \(coordinate.latitude)")
-                    print("         📍 Lon: \(coordinate.longitude)")
-                } else {
-                    print("      ❌ No coordinates found for: \(result.title)")
-                }
+                            if let item = response?.mapItems.first {
+                let coordinate = item.placemark.coordinate
+                print("      ✅ Coordinates for '\(result.title)':")
+                print("         📍 Lat: \(coordinate.latitude)")
+                print("         📍 Lon: \(coordinate.longitude)")
+                
+                // Store the coordinates for this result
+                let resultKey = "\(result.title)_\(result.subtitle)"
+                self.resultCoordinates[resultKey] = coordinate
+            } else {
+                print("      ❌ No coordinates found for: \(result.title)")
+            }
             }
         }
 

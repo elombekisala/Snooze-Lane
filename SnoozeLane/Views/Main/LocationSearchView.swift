@@ -65,7 +65,8 @@ struct LocationSearchView: View {
                         ForEach(locationViewModel.results, id: \.self) { result in
                             LocationSearchResultsCell(
                                 title: result.title,
-                                subtitle: result.subtitle
+                                subtitle: result.subtitle,
+                                coordinate: locationViewModel.getCoordinateForResult(result)
                             )
                             .onTapGesture {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
