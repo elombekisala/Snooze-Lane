@@ -6,6 +6,7 @@ struct MapView: View {
     @Binding var mapState: MapViewState
     @Binding var alarmDistance: Double
     @Binding var showLocationSearch: Bool
+    let navigationState: NavigationState
 
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
     @EnvironmentObject var tripProgressViewModel: TripProgressViewModel
@@ -164,6 +165,11 @@ struct MapView: View {
         .onChange(of: locationManager.location) { newLocation in
             handleLocationUpdate(newLocation)
         }
+        .onChange(of: navigationState.shouldSetDestination) { shouldSet in
+            if shouldSet {
+                handleNavigationStateDestination()
+            }
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
@@ -206,6 +212,22 @@ struct MapView: View {
         if let userLocation = locationManager.location {
             centerOnLocation(userLocation)
         }
+    }
+    
+    private func handleNavigationStateDestination() {
+        guard let coordinate = navigationState.selectedDestination,
+              let title = navigationState.destinationTitle.isEmpty ? nil : navigationState.destinationTitle else {
+            return
+        }
+        
+        setDestination(coordinate, title: title)
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .locationSelected
+        }
+        scaleMapToShowBothLocations()
+        
+        // Mark destination as set
+        navigationState.destinationSet()
     }
     
     private func cycleMapType() {
@@ -288,6 +310,9 @@ struct MapView: View {
         
         // Stop location updates
         stopLocationUpdateTimer()
+        
+        // Clear navigation state
+        navigationState.clearDestination()
     }
     
     private func updatePolylineCoordinates() {
@@ -616,7 +641,8 @@ struct TripProgressCard: View {
     MapView(
         mapState: .constant(.noInput),
         alarmDistance: .constant(482.81),
-        showLocationSearch: .constant(false)
+        showLocationSearch: .constant(false),
+        navigationState: NavigationState()
     )
     .environmentObject(LocationSearchViewModel(locationManager: LocationManager()))
     .environmentObject(TripProgressViewModel(locationViewModel: LocationSearchViewModel(locationManager: LocationManager())))

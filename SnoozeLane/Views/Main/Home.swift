@@ -1,11 +1,13 @@
 import Combine
 import MapKit
 import SwiftUI
+import AudioToolbox
 
 struct Home: View {
     @State private var mapState: MapViewState = .noInput
     @State private var alarmDistance: Double = 482.81
     @State private var showSearchModal = false
+    @StateObject private var navigationState = NavigationState()
 
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
     @EnvironmentObject var tripProgressViewModel: TripProgressViewModel
@@ -19,7 +21,8 @@ struct Home: View {
             MapView(
                 mapState: $mapState,
                 alarmDistance: $alarmDistance,
-                showLocationSearch: $showSearchModal
+                showLocationSearch: $showSearchModal,
+                navigationState: navigationState
             )
 
             // Floating Search Bar at the Bottom (State-based visibility)
@@ -72,7 +75,7 @@ struct Home: View {
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title2)
-                            .foregroundColor(.white)
+                            .foregroundColor(.white.opacity(0.7))
                     }
                 }
                 .padding(.horizontal)
@@ -81,7 +84,7 @@ struct Home: View {
                 // Search Bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.white)
+                        .foregroundColor(.white.opacity(0.7))
                         .padding(.leading, 12)
 
                     TextField("Search destinations...", text: $locationViewModel.queryFragment)
@@ -90,7 +93,8 @@ struct Home: View {
                         .foregroundColor(.white)
                         .placeholder(when: locationViewModel.queryFragment.isEmpty) {
                             Text("Search destinations...")
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(.white.opacity(0.5))
+                                .font(.system(size: 18, weight: .medium))
                         }
 
                     if !locationViewModel.queryFragment.isEmpty {
@@ -98,14 +102,14 @@ struct Home: View {
                             locationViewModel.queryFragment = ""
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.white)
+                                .foregroundColor(.white.opacity(0.7))
                         }
                         .padding(.trailing, 12)
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Color.black.opacity(0.3))
+                .background(Color.gray.opacity(0.2))
                 .cornerRadius(12)
                 .padding(.horizontal)
 
@@ -118,44 +122,12 @@ struct Home: View {
                             .foregroundColor(.white)
                             .padding(.horizontal)
 
-                        // Home
-                        QuickDestinationButton(
-                            title: "Home",
-                            subtitle: "123 Main St",
-                            icon: "house.fill",
-                            color: Color.blue
-                        ) {
-                            showSearchModal = false
-                        }
-
-                        // Work
-                        QuickDestinationButton(
-                            title: "Work",
-                            subtitle: "456 Office Rd",
-                            icon: "briefcase.fill",
-                            color: Color.green
-                        ) {
-                            showSearchModal = false
-                        }
-
-                        // Gym
-                        QuickDestinationButton(
-                            title: "Gym",
-                            subtitle: "Fitness Center",
-                            icon: "dumbbell.fill",
-                            color: Color.purple
-                        ) {
-                            showSearchModal = false
-                        }
-
-                        // Grocery Store
-                        QuickDestinationButton(
-                            title: "Grocery Store",
-                            subtitle: "Supermarket",
-                            icon: "cart.fill",
-                            color: Color.orange
-                        ) {
-                            showSearchModal = false
+                        ForEach(DestinationData.quickDestinations, id: \.title) { destination in
+                            QuickDestinationButton(
+                                destination: destination
+                            ) {
+                                setDestinationFromQuickButton(destination: destination)
+                            }
                         }
                     }
                     .padding(.top)
@@ -167,7 +139,7 @@ struct Home: View {
                                 && !locationViewModel.queryFragment.isEmpty
                             {
                                 Text("No results found for \"\(locationViewModel.queryFragment)\"")
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundColor(.white.opacity(0.7))
                                     .padding()
                             } else {
                                 ForEach(locationViewModel.results, id: \.self) { result in
@@ -176,9 +148,10 @@ struct Home: View {
                                         subtitle: result.subtitle
                                     )
                                     .onTapGesture {
-                                        locationViewModel.selectLocation(result)
-                                        mapState = .locationSelected
-                                        showSearchModal = false
+                                        // Convert search result to coordinate and set destination
+                                        if let coordinate = result.coordinate {
+                                            setDestinationFromSearch(coordinate: coordinate, title: result.title)
+                                        }
                                     }
                                 }
                             }
@@ -192,14 +165,50 @@ struct Home: View {
             .presentationDetents([.medium, .large])
         }
     }
+    
+    // MARK: - Helper Functions
+    
+    private func setDestinationFromQuickButton(destination: DestinationData) {
+        // Close the search modal
+        showSearchModal = false
+        
+        // Set the destination using NavigationState
+        navigationState.setDestination(destination.coordinate, title: destination.title)
+        
+        // Update map state
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .locationSelected
+        }
+        
+        // Provide haptic feedback
+        provideHapticFeedback()
+    }
+    
+    private func setDestinationFromSearch(coordinate: CLLocationCoordinate2D, title: String) {
+        // Close the search modal
+        showSearchModal = false
+        
+        // Set the destination using NavigationState
+        navigationState.setDestination(coordinate, title: title)
+        
+        // Update map state
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .locationSelected
+        }
+        
+        // Provide haptic feedback
+        provideHapticFeedback()
+    }
+    
+    private func provideHapticFeedback() {
+        // Simple haptic feedback using system sound
+        AudioServicesPlaySystemSound(1104) // Light impact sound
+    }
 }
 
-// Simple Quick Destination Button
+// Enhanced Quick Destination Button
 struct QuickDestinationButton: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
+    let destination: DestinationData
     let action: () -> Void
 
     var body: some View {
@@ -207,21 +216,21 @@ struct QuickDestinationButton: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(color)
+                        .fill(destination.type.color)
                         .frame(width: 40, height: 40)
 
-                    Image(systemName: icon)
+                    Image(systemName: destination.type.icon)
                         .resizable()
                         .foregroundColor(.white)
                         .frame(width: 16, height: 16)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
+                    Text(destination.title)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
 
-                    Text(subtitle)
+                    Text(destination.subtitle)
                         .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -229,12 +238,12 @@ struct QuickDestinationButton: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.white.opacity(0.7))
                     .font(.system(size: 14, weight: .medium))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.1))
+            .background(Color.gray.opacity(0.2))
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
