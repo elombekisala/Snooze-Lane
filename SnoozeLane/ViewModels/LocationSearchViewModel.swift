@@ -205,25 +205,62 @@ class LocationSearchViewModel: NSObject, ObservableObject {
     // MARK: - Location Selection
 
     func selectLocation(_ localSearch: MKLocalSearchCompletion) {
+        print("🔍 SEARCH RESULT SELECTED:")
+        print("   📍 Title: \(localSearch.title)")
+        print("   📍 Subtitle: \(localSearch.subtitle)")
+        
         let searchRequest = MKLocalSearch.Request(completion: localSearch)
         let search = MKLocalSearch(request: searchRequest)
+        
+        print("   🔄 Starting coordinate search...")
         search.start { [weak self] response, error in
             guard let self = self else { return }
 
             if let error = error {
-                print("DEBUG: Location search failed with error \(error.localizedDescription)")
+                print("❌ Location search failed with error: \(error.localizedDescription)")
                 return
             }
 
-            guard let item = response?.mapItems.first else { return }
+            print("📋 SEARCH RESPONSE RECEIVED:")
+            print("   📍 Response items count: \(response?.mapItems.count ?? 0)")
+            print("   📍 Response region: \(response?.boundingRegion)")
+            
+            guard let item = response?.mapItems.first else { 
+                print("❌ No map items found in search response")
+                return 
+            }
+            
+            print("📍 MAP ITEM DETAILS:")
+            print("   📍 Name: \(item.name ?? "N/A")")
+            print("   📍 Placemark: \(item.placemark)")
+            print("   📍 Coordinate: \(item.placemark.coordinate)")
+            print("   📍 Country: \(item.placemark.country ?? "N/A")")
+            print("   📍 Administrative Area: \(item.placemark.administrativeArea ?? "N/A")")
+            print("   📍 Locality: \(item.placemark.locality ?? "N/A")")
+            
             let coordinate = item.placemark.coordinate
+            print("✅ COORDINATES EXTRACTED:")
+            print("   📍 Latitude: \(coordinate.latitude)")
+            print("   📍 Longitude: \(coordinate.longitude)")
+            print("   📍 Full Coordinate: \(coordinate)")
+            
             self.selectedSnoozeLaneLocation = SnoozeLaneLocation(
                 title: localSearch.title,
                 subtitle: localSearch.subtitle,
                 coordinate: coordinate,
                 placemark: item.placemark)
 
-            print("DEBUG: Location coordinates \(coordinate)")
+            // Post notification to add destination annotation to the map
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .addDestinationAnnotation,
+                    object: nil,
+                    userInfo: [
+                        "coordinate": coordinate, "title": localSearch.title,
+                        "subtitle": localSearch.subtitle,
+                    ]
+                )
+            }
 
             if let selectedSnoozeLaneLocation = self.selectedSnoozeLaneLocation,
                 let currentLocation = self.getCurrentLocation()
