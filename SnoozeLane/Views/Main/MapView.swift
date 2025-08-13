@@ -9,15 +9,15 @@ enum TransportationMode: String, CaseIterable {
     case car = "car"
     case bus = "bus"
     case train = "train"
-    
-    var averageSpeed: Double { // km/h
+
+    var averageSpeed: Double {  // km/h
         switch self {
         case .car: return 60.0
         case .bus: return 25.0
         case .train: return 80.0
         }
     }
-    
+
     var displayName: String {
         switch self {
         case .car: return "Car"
@@ -94,10 +94,11 @@ struct MapView: View {
                                         Text("Estimated Rest Time")
                                             .font(.caption)
                                             .foregroundColor(.white.opacity(0.8))
-                                        
+
                                         // Transportation mode picker
                                         Menu {
-                                            ForEach(TransportationMode.allCases, id: \.self) { mode in
+                                            ForEach(TransportationMode.allCases, id: \.self) {
+                                                mode in
                                                 Button(mode.displayName) {
                                                     transportationMode = mode
                                                 }
@@ -108,7 +109,7 @@ struct MapView: View {
                                                 .font(.caption)
                                         }
                                     }
-                                    
+
                                     Text(calculateEstimatedRestTime())
                                         .font(.title2)
                                         .fontWeight(.bold)
@@ -119,39 +120,47 @@ struct MapView: View {
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(Color.black.opacity(0.7))
-                                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                        .background(
+                                            .ultraThinMaterial,
+                                            in: RoundedRectangle(cornerRadius: 12))
                                 )
                                 .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 2)
                                 Spacer()
                             }
-                            .padding(.top, 60) // Account for status bar
+                            .padding(.top, 60)  // Account for status bar
                             Spacer()
                         }
                     }
                 }
             )
-            .onTapGesture(count: 1) {
-                // Single tap to place a pin or clear selection
-                if selectedDestination != nil {
-                    clearDestination()
-                } else {
-                    // For single tap, we'll use the center for now
-                    // In a future update, we can implement proper coordinate conversion
-                    let coordinate = region.center
-                    let title = "Custom Location"
-                    setDestination(coordinate, title: title)
-                }
-            }
+
             .gesture(
                 LongPressGesture(minimumDuration: 0.5)
                     .onEnded { _ in
-                        // For now, we'll use the center of the current map view
-                        // The coordinate conversion function is ready for future use
-                        // In a future update, we can implement proper location capture
-                        // without interfering with map panning
+                        // Use the center of the current map view for now
+                        // TODO: Implement proper coordinate conversion without breaking map panning
                         handleLongPress()
                     }
             )
+            .onTapGesture(count: 1, coordinateSpace: .local) { location in
+                // Single tap to place a pin at the actual tap location
+                if selectedDestination != nil {
+                    clearDestination()
+                } else {
+                    // Convert tap location to map coordinates
+                    let coordinate = screenPointToCoordinate(location)
+                    let title = "Custom Location"
+                    setDestination(coordinate, title: title)
+                    
+                    // Update map state
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        mapState = .locationSelected
+                    }
+                    
+                    // Provide haptic feedback
+                    provideHapticFeedback()
+                }
+            }
             .simultaneousGesture(
                 DragGesture()
                     .onChanged { _ in
@@ -285,7 +294,8 @@ struct MapView: View {
                                 Circle()
                                     .fill(useMetricSystem ? Color.blue : Color.orange)
                                     .shadow(
-                                        color: (useMetricSystem ? Color.blue : Color.orange).opacity(0.3),
+                                        color: (useMetricSystem ? Color.blue : Color.orange)
+                                            .opacity(0.3),
                                         radius: 4, x: 0, y: 2
                                     )
                             )
@@ -335,6 +345,7 @@ struct MapView: View {
                     AlarmSettingsCard(
                         alarmDistance: $alarmDistance,
                         mapState: $mapState,
+                        useMetricSystem: useMetricSystem,
                         onStartTrip: startTrip
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -345,6 +356,7 @@ struct MapView: View {
                     TripProgressCard(
                         mapState: $mapState,
                         distance: calculateDistanceToDestination(),
+                        useMetricSystem: useMetricSystem,
                         onEndTrip: endTrip
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -834,10 +846,10 @@ struct MapView: View {
         // In a real app, you'd use UIImpactFeedbackGenerator
         AudioServicesPlaySystemSound(1104)  // Light impact sound
     }
+
+        // MARK: - Distance and Time Calculations
     
-    // MARK: - Distance and Time Calculations
-    
-    private func formatDistance(_ distance: Double) -> String {
+    func formatDistance(_ distance: Double) -> String {
         if useMetricSystem {
             // Metric: show meters or kilometers
             if distance >= 1000 {
@@ -849,7 +861,7 @@ struct MapView: View {
         } else {
             // Imperial: show feet or miles with 0.01 precision
             let feet = distance * 3.28084
-            if feet >= 5280 { // 1 mile = 5280 feet
+            if feet >= 5280 {  // 1 mile = 5280 feet
                 let miles = feet / 5280
                 return String(format: "%.2f mi", miles)
             } else {
@@ -857,23 +869,25 @@ struct MapView: View {
             }
         }
     }
-    
+
     private func calculateEstimatedRestTime() -> String {
         guard let destination = selectedDestination,
-              let userLocation = locationManager.location else {
+            let userLocation = locationManager.location
+        else {
             return "00:00"
         }
-        
-        let distance = userLocation.distance(from: CLLocation(latitude: destination.latitude, longitude: destination.longitude))
+
+        let distance = userLocation.distance(
+            from: CLLocation(latitude: destination.latitude, longitude: destination.longitude))
         let distanceInKm = distance / 1000
-        
+
         // Calculate time based on transportation mode average speed
         let timeInHours = distanceInKm / transportationMode.averageSpeed
         let timeInMinutes = Int(timeInHours * 60)
-        
+
         let hours = timeInMinutes / 60
         let minutes = timeInMinutes % 60
-        
+
         return String(format: "%02d:%02d", hours, minutes)
     }
 
@@ -962,6 +976,7 @@ struct LocationDetailsCard: View {
 struct AlarmSettingsCard: View {
     @Binding var alarmDistance: Double
     @Binding var mapState: MapViewState
+    let useMetricSystem: Bool
     let onStartTrip: () -> Void
 
     var body: some View {
@@ -988,9 +1003,9 @@ struct AlarmSettingsCard: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Distance: \(Int(alarmDistance)) meters")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
+                                        Text("Distance: \(formatDistance(alarmDistance))")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
 
                 Slider(value: $alarmDistance, in: 100...1000, step: 50)
                     .accentColor(mapState.accentColor)
@@ -1007,11 +1022,33 @@ struct AlarmSettingsCard: View {
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
+    
+    private func formatDistance(_ distance: Double) -> String {
+        if useMetricSystem {
+            // Metric: show meters or kilometers
+            if distance >= 1000 {
+                let kilometers = distance / 1000
+                return String(format: "%.2f km", kilometers)
+            } else {
+                return String(format: "%.0f m", distance)
+            }
+        } else {
+            // Imperial: show feet or miles with 0.01 precision
+            let feet = distance * 3.28084
+            if feet >= 5280 {  // 1 mile = 5280 feet
+                let miles = feet / 5280
+                return String(format: "%.2f mi", miles)
+            } else {
+                return String(format: "%.0f ft", feet)
+            }
+        }
+    }
 }
 
 struct TripProgressCard: View {
     @Binding var mapState: MapViewState
     let distance: Double?
+    let useMetricSystem: Bool
     let onEndTrip: () -> Void
 
     var body: some View {
@@ -1062,16 +1099,23 @@ struct TripProgressCard: View {
     }
 
     private func formatDistance(_ distance: Double) -> String {
-        let formatter = MeasurementFormatter()
-        formatter.unitOptions = .providedUnit
-        formatter.numberFormatter.maximumFractionDigits = 1
-
-        if distance >= 1000 {
-            let kilometers = Measurement(value: distance / 1000, unit: UnitLength.kilometers)
-            return formatter.string(from: kilometers)
+        if useMetricSystem {
+            // Metric: show meters or kilometers
+            if distance >= 1000 {
+                let kilometers = distance / 1000
+                return String(format: "%.2f km", kilometers)
+            } else {
+                return String(format: "%.0f m", distance)
+            }
         } else {
-            let meters = Measurement(value: distance, unit: UnitLength.meters)
-            return formatter.string(from: meters)
+            // Imperial: show feet or miles with 0.01 precision
+            let feet = distance * 3.28084
+            if feet >= 5280 {  // 1 mile = 5280 feet
+                let miles = feet / 5280
+                return String(format: "%.2f mi", miles)
+            } else {
+                return String(format: "%.0f ft", feet)
+            }
         }
     }
 }
