@@ -19,7 +19,7 @@ struct MapView: View {
     @State private var showMapControls = true
     @State private var showSettings = false
     @State private var mapType: MKMapType = .standard
-
+    
     // Navigation state
     @State private var selectedDestination: CLLocationCoordinate2D?
     @State private var polylineCoordinates: [CLLocationCoordinate2D] = []
@@ -45,13 +45,13 @@ struct MapView: View {
                             // Convert coordinates to screen points (simplified)
                             let startPoint = CGPoint(x: 100, y: 300)
                             let endPoint = CGPoint(x: 300, y: 300)
-
+                            
                             path.move(to: startPoint)
                             path.addLine(to: endPoint)
                         }
                         .stroke(Color.blue, lineWidth: 4)
                     }
-
+                    
                     // Destination annotation
                     if let destination = selectedDestination {
                         Image(systemName: "mappin.circle.fill")
@@ -59,7 +59,7 @@ struct MapView: View {
                             .font(.title)
                             .background(Circle().fill(.white))
                             .position(
-                                x: 300, y: 300  // Placeholder position
+                                x: 300, y: 300 // Placeholder position
                             )
                     }
                 }
@@ -176,7 +176,7 @@ struct MapView: View {
         .onAppear {
             // Request location when view appears
             locationManager.startUpdatingLocation()
-
+            
             // Start location update timer for real-time polyline updates
             startLocationUpdateTimer()
         }
@@ -203,22 +203,22 @@ struct MapView: View {
         // In a real implementation, you'd convert screen coordinates to map coordinates
         let coordinate = region.center
         setDestination(coordinate)
-
+        
         // Update map state to show location details
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .locationSelected
         }
-
+        
         // Scale map to show both user location and destination
         scaleMapToShowBothLocations()
     }
 
     private func setDestination(_ coordinate: CLLocationCoordinate2D) {
         selectedDestination = coordinate
-
+        
         // Update polyline coordinates
         updatePolylineCoordinates()
-
+        
         isNavigating = true
     }
 
@@ -226,50 +226,48 @@ struct MapView: View {
         selectedDestination = nil
         polylineCoordinates = []
         isNavigating = false
-
+        
         // Reset map state
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .noInput
         }
     }
-
+    
     private func updatePolylineCoordinates() {
         guard let userLocation = locationManager.location,
-            let destination = selectedDestination
-        else { return }
-
+              let destination = selectedDestination else { return }
+        
         // Create polyline from user location to destination
         polylineCoordinates = [
             userLocation.coordinate,
-            destination,
+            destination
         ]
-
+        
         // Scale map to show both locations
         scaleMapToShowBothLocations()
     }
-
+    
     private func scaleMapToShowBothLocations() {
         guard let userLocation = locationManager.location,
-            let destination = selectedDestination
-        else { return }
-
+              let destination = selectedDestination else { return }
+        
         // Calculate the region that includes both locations
         let centerLat = (userLocation.coordinate.latitude + destination.latitude) / 2
         let centerLon = (userLocation.coordinate.longitude + destination.longitude) / 2
-
+        
         let latDelta = abs(userLocation.coordinate.latitude - destination.latitude) * 1.5
         let lonDelta = abs(userLocation.coordinate.longitude - destination.longitude) * 1.5
-
+        
         // Ensure minimum zoom level
         let minDelta = 0.01
         let finalLatDelta = max(latDelta, minDelta)
         let finalLonDelta = max(lonDelta, minDelta)
-
+        
         let newRegion = MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
             span: MKCoordinateSpan(latitudeDelta: finalLatDelta, longitudeDelta: finalLonDelta)
         )
-
+        
         withAnimation(.easeInOut(duration: 0.5)) {
             region = newRegion
         }
@@ -283,7 +281,7 @@ struct MapView: View {
             }
         }
     }
-
+    
     private func stopLocationUpdateTimer() {
         locationUpdateTimer?.invalidate()
         locationUpdateTimer = nil
