@@ -134,12 +134,39 @@ struct MapView: View {
                 }
             )
 
-            .gesture(
-                LongPressGesture(minimumDuration: 0.5)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        // Start long press timer when drag begins
+                        if !isLongPressing {
+                            isLongPressing = true
+                            longPressLocation = value.startLocation
+                            
+                            // Start timer for long press detection
+                            longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                                // Long press detected - place pin at actual location
+                                let coordinate = screenPointToCoordinate(longPressLocation)
+                                let title = "Selected Location"
+                                setDestination(coordinate, title: title)
+                                
+                                // Update map state
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    mapState = .locationSelected
+                                }
+                                
+                                // Provide haptic feedback
+                                provideHapticFeedback()
+                                
+                                // Reset state
+                                isLongPressing = false
+                            }
+                        }
+                    }
                     .onEnded { _ in
-                        // Use the center of the current map view for now
-                        // TODO: Implement proper coordinate conversion without breaking map panning
-                        handleLongPress()
+                        // Cancel long press if drag ends before timer
+                        longPressTimer?.invalidate()
+                        longPressTimer = nil
+                        isLongPressing = false
                     }
             )
             .onTapGesture(count: 1, coordinateSpace: .local) { location in
@@ -520,38 +547,7 @@ struct MapView: View {
         }
     }
 
-    private func handleLongPress() {
-        // For now, we'll use the center of the current map view
-        // In a future implementation, we could capture the actual tap location
-        // and convert it to map coordinates using MapViewProxy
-        let coordinate = region.center
-        let title = "Selected Location"
 
-        // DEBUG: Log the coordinate mismatch
-        print("🔍 LONG PRESS DEBUG (handleLongPress):")
-        print(
-            "   📍 Map Center (where pin is placed): \(coordinate.latitude), \(coordinate.longitude)"
-        )
-        print(
-            "   🗺️  Current Map Region: center(\(region.center.latitude), \(region.center.longitude)), span(\(region.span.latitudeDelta), \(region.span.longitudeDelta))"
-        )
-        print("   📱 Screen Size: \(UIScreen.main.bounds.width) x \(UIScreen.main.bounds.height)")
-        print("   ⚠️  ISSUE: Pin placed at map center, not actual long press location!")
-        print("   🎯 This explains why pin placement is inaccurate!")
-
-        setDestination(coordinate, title: title)
-
-        // Update map state to show location details
-        withAnimation(.easeInOut(duration: 0.3)) {
-            mapState = .locationSelected
-        }
-
-        // Don't automatically scale the map - let user control it naturally
-        // This prevents the pulsing/refreshing behavior
-
-        // Provide haptic feedback
-        provideHapticFeedback()
-    }
 
     private func screenPointToCoordinate(_ screenPoint: CGPoint) -> CLLocationCoordinate2D {
         // Convert screen coordinates to map coordinates
