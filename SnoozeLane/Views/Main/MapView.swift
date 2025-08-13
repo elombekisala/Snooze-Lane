@@ -69,26 +69,13 @@ struct MapView: View {
                 }
             }
             .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        // Track the location of the drag
-                        longPressLocation = value.location
-                        
-                        // Start long press timer if not already started
-                        if longPressTimer == nil {
-                            longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
-                                // This is a long press - trigger the action
-                                DispatchQueue.main.async {
-                                    handleLongPressAtLocation(longPressLocation)
-                                    longPressTimer = nil
-                                }
-                            }
-                        }
-                    }
-                    .onEnded { value in
-                        // Cancel the long press timer
-                        longPressTimer?.invalidate()
-                        longPressTimer = nil
+                LongPressGesture(minimumDuration: 0.5)
+                    .onEnded { _ in
+                        // For now, we'll use the center of the current map view
+                        // The coordinate conversion function is ready for future use
+                        // In a future update, we can implement proper location capture
+                        // without interfering with map panning
+                        handleLongPress()
                     }
             )
             .simultaneousGesture(
