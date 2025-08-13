@@ -2,83 +2,73 @@ import MapKit
 import SwiftUI
 
 struct LocationSearchView: View {
-
     @Binding var mapState: MapViewState
-    @EnvironmentObject var windowSharedModel: WindowSharedModel
-    @EnvironmentObject var locationSearchViewModel: LocationSearchViewModel
-    @EnvironmentObject var locationManager: LocationManager
+    @ObservedObject var locationViewModel: LocationSearchViewModel
 
-    @State private var startLocationText = ""
     @State private var isKeyboardVisible = false
 
-    @ObservedObject var locationViewModel: LocationSearchViewModel
-    @ObservedObject var progressViewModel = TripProgressViewModel(
-        locationViewModel: LocationSearchViewModel(locationManager: LocationManager()))
-
     var body: some View {
-        VStack {
-            VStack(alignment: .center, spacing: 15) {
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(.systemGray6))
-                        .shadow(color: Color(.systemGray4).opacity(0.3), radius: 3, x: 0, y: 2)
+        VStack(spacing: 16) {
+            // Search Bar
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.gray.opacity(0.1))
+                    .shadow(color: Color.gray.opacity(0.3), radius: 3, x: 0, y: 2)
 
-                    HStack {
-                        if locationSearchViewModel.queryFragment.isEmpty {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.gray)
-                                .padding(.leading, 15)
-                        }
-                        TextField(
-                            "Where To?", text: $locationSearchViewModel.queryFragment,
-                            onEditingChanged: { editing in
-                                withAnimation {
-                                    self.isKeyboardVisible = editing
-                                }
-                            }
-                        )
-                        .foregroundColor(.primary)
-                        .padding(.leading, locationSearchViewModel.queryFragment.isEmpty ? 0 : 15)
-
-                        if !locationSearchViewModel.queryFragment.isEmpty {
-                            Button(action: {
-                                locationSearchViewModel.queryFragment = ""
-                                mapState = .noInput
-                                withAnimation {
-                                    self.isKeyboardVisible = false
-                                    windowSharedModel.sheetHeight = 100
-                                }
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.trailing, 15)
-                        }
+                HStack {
+                    if locationViewModel.queryFragment.isEmpty {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .padding(.leading, 15)
                     }
-                    .padding(.horizontal)
+
+                    TextField(
+                        "Where To?",
+                        text: $locationViewModel.queryFragment,
+                        onEditingChanged: { editing in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.isKeyboardVisible = editing
+                            }
+                        }
+                    )
+                    .foregroundColor(.primary)
+                    .padding(.leading, locationViewModel.queryFragment.isEmpty ? 0 : 15)
+
+                    if !locationViewModel.queryFragment.isEmpty {
+                        Button(action: {
+                            locationViewModel.queryFragment = ""
+                            mapState = .noInput
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.isKeyboardVisible = false
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.trailing, 15)
+                    }
                 }
-                .frame(width: UIScreen.main.bounds.width - 50, height: 50)
+                .padding(.horizontal)
             }
-            .cornerRadius(10)
-            .padding(.horizontal)
+            .frame(height: 50)
             .onTapGesture {
                 self.isKeyboardVisible = true
-                startLocationText = ""  // clear the text field when the user taps it
             }
 
-            if isKeyboardVisible {
+            // Search Results
+            if isKeyboardVisible && !locationViewModel.results.isEmpty {
                 Divider()
-                    .padding(.vertical)
-                    .frame(height: 2)
+                    .padding(.vertical, 8)
 
                 ScrollView {
-                    VStack(alignment: .leading) {
+                    LazyVStack(spacing: 12) {
                         ForEach(locationViewModel.results, id: \.self) { result in
                             LocationSearchResultsCell(
-                                title: result.title, subtitle: result.subtitle
+                                title: result.title,
+                                subtitle: result.subtitle
                             )
                             .onTapGesture {
-                                withAnimation(.spring()) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                     locationViewModel.selectLocation(result)
                                     mapState = .locationSelected
                                     self.isKeyboardVisible = false
@@ -86,12 +76,12 @@ struct LocationSearchView: View {
                             }
                         }
                     }
+                    .padding(.horizontal, 4)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.easeInOut(duration: 0.35), value: isKeyboardVisible)
             }
         }
-        .frame(maxHeight: isKeyboardVisible ? .infinity : 80)
+        .padding(.horizontal, 16)
         .onReceive(
             NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
         ) { _ in
@@ -101,24 +91,7 @@ struct LocationSearchView: View {
             NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
         ) { _ in
             self.isKeyboardVisible = false
-            if locationSearchViewModel.queryFragment.isEmpty {
-                withAnimation {
-                    windowSharedModel.sheetHeight = 100
-                }
-            }
         }
-        .onChange(of: locationSearchViewModel.queryFragment) { oldValue, newValue in
-            if newValue.isEmpty {
-                withAnimation {
-                    windowSharedModel.sheetHeight = 100
-                }
-            } else {
-                withAnimation {
-                    windowSharedModel.sheetHeight = UIScreen.main.bounds.height / 2
-                }
-            }
-        }
-        .padding(.horizontal)
     }
 }
 
@@ -127,6 +100,7 @@ struct LocationSearchView_Previews: PreviewProvider {
         let locationViewModel = LocationSearchViewModel(locationManager: LocationManager())
         LocationSearchView(
             mapState: .constant(.searchingForLocation),
-            locationViewModel: locationViewModel)
+            locationViewModel: locationViewModel
+        )
     }
 }

@@ -2,187 +2,78 @@ import MapKit
 import SwiftUI
 
 struct MapView: View {
-    @State private var showSheet: Bool = true
-    @State private var userHasInteractedWithMap = false
-    @State private var selectedMapItem: MKMapItem?
-    @State private var showDetails: Bool = false
-    @State private var showErrorAlert = false
-    @State private var mapType: MKMapType = .standard
-    @State private var isFollowingUser: Bool = true
-    @State private var showSettings: Bool = false
-    @State private var showSearchOverlay: Bool = false
-    @State private var searchPanelHeight: CGFloat = 0
-    @State private var isSearching: Bool = false
-    @State private var showProgressView: Bool = true
+    @Binding var mapState: MapViewState
+    @Binding var alarmDistance: Double
+    @Binding var showLocationSearch: Bool
 
-    // Modal state management
-    @State private var showModal: Bool = false
-    @State private var modalOffset: CGFloat = 0
-    @State private var isDraggingModal: Bool = false
-    @State private var lastDragOffset: CGFloat = 0
-
-    @Environment(\.dismiss) var dismiss
-    @Environment(\.presentationMode) var presentationMode
-    @Environment(\.colorScheme) var scheme
-    @EnvironmentObject var loginViewModel: LoginViewModel
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
     @EnvironmentObject var tripProgressViewModel: TripProgressViewModel
     @EnvironmentObject var locationManager: LocationManager
 
-    @Binding var mapState: MapViewState
-    @Binding var alarmDistance: Double
+    @State private var region = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+    )
 
     var body: some View {
-        ZStack {
-            // Map View
-            MapViewRepresentable(
-                selectedMapItem: $selectedMapItem,
-                showingDetails: $showDetails,
-                mapState: $mapState,
-                userHasInteractedWithMap: $userHasInteractedWithMap,
-                alarmDistance: $alarmDistance,
-                mapType: $mapType,
-                isFollowingUser: $isFollowingUser
+        ZStack(alignment: .topTrailing) {
+            // Map
+            Map(
+                coordinateRegion: $region, showsUserLocation: true,
+                userTrackingMode: .constant(.follow)
             )
             .ignoresSafeArea()
 
-            // Top Controls
-            VStack {
-                HStack {
-                    // Location Button
-                    Button(action: {
-                        locationViewModel.centerOnUserLocation()
-                    }) {
-                        Image(systemName: "location.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    .padding(.leading, 20)
-
-                    Spacer()
-
-                    // Map Type Button
-                    Button(action: {
-                        mapType = mapType == .standard ? .hybrid : .standard
-                    }) {
-                        Image(systemName: mapType == .standard ? "map" : "map.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    .padding(.trailing, 20)
+            // Top Controls - Pinned to top right
+            VStack(spacing: 12) {
+                // Map Type Button
+                Button(action: {
+                    // Toggle map type if needed
+                }) {
+                    Image(systemName: "map")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(Color.white)
+                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                        )
                 }
-                .padding(.top, 60)
 
-                Spacer()
+                // Location Button
+                Button(action: {
+                    // Center on user location
+                }) {
+                    Image(systemName: "location.fill")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(Color.white)
+                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                        )
+                }
             }
-
-            // Modal View
-            if showModal {
-                ModalView(
-                    locationViewModel: locationViewModel,
-                    tripProgressViewModel: tripProgressViewModel,
-                    mapState: $mapState,
-                    showModal: $showModal,
-                    modalOffset: $modalOffset,
-                    isDraggingModal: $isDraggingModal,
-                    lastDragOffset: $lastDragOffset
-                )
-                .ignoresSafeArea(.all, edges: .bottom)
-            }
+            .padding(.top, 60)  // Account for status bar
+            .padding(.trailing, 16)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .onAppear {
-            // Show modal by default
-            showModal = true
+            // Request location when view appears
+            // locationManager.requestLocation()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .locationSelected)) { _ in
-            // Show modal when location is selected
-            showModal = true
+        .onChange(of: mapState) { oldValue, newValue in
+            // Handle state changes
         }
     }
 }
 
-struct ModalView: View {
-    @ObservedObject var locationViewModel: LocationSearchViewModel
-    @ObservedObject var tripProgressViewModel: TripProgressViewModel
-    @Binding var mapState: MapViewState
-    @Binding var showModal: Bool
-    @Binding var modalOffset: CGFloat
-    @Binding var isDraggingModal: Bool
-    @Binding var lastDragOffset: CGFloat
-
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                Spacer()
-
-                // Modal Content
-                VStack(spacing: 0) {
-                    // Drag Handle
-                    RoundedRectangle(cornerRadius: 2.5)
-                        .fill(Color.gray.opacity(0.5))
-                        .frame(width: 36, height: 5)
-                        .padding(.top, 8)
-                        .padding(.bottom, 16)
-
-                    // Content based on state
-                    if locationViewModel.selectedSnoozeLaneLocation != nil {
-                        // Trip Setup View
-                        TripSetupView(
-                            mapState: $mapState,
-                            alarmDistance: .constant(100.0)
-                        )
-                        .environmentObject(locationViewModel)
-                        .environmentObject(tripProgressViewModel)
-                                            } else if tripProgressViewModel.isStarted {
-                            // Trip Progress View
-                            TripProgressView(
-                                mapState: $mapState,
-                                distance: 0.0,
-                                isActive: .constant(true)
-                            )
-                            .environmentObject(tripProgressViewModel)
-                                                                } else {
-                        // Location Search View
-                        LocationSearchView(
-                            mapState: $mapState,
-                            locationViewModel: locationViewModel
-                        )
-                }
-                }
-                .background(Color(.systemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .offset(y: modalOffset)
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            isDraggingModal = true
-                            let newOffset = value.translation.height + lastDragOffset
-                            modalOffset = max(-geometry.size.height + 100, min(0, newOffset))
-                        }
-                        .onEnded { value in
-                            isDraggingModal = false
-                            let velocity =
-                                value.predictedEndTranslation.height - value.translation.height
-
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                if velocity > 500 || modalOffset > -geometry.size.height / 2 {
-                                    // Snap to bottom (almost completely hidden)
-                                    modalOffset = -geometry.size.height + 100
-                                } else {
-                                    // Snap to top (fully visible)
-                                    modalOffset = 0
-                                }
-                            }
-                            lastDragOffset = modalOffset
-                        }
-                )
-            }
-        }
-    }
+#Preview {
+    MapView(
+        mapState: .constant(.noInput),
+        alarmDistance: .constant(482.81),
+        showLocationSearch: .constant(false)
+    )
 }
