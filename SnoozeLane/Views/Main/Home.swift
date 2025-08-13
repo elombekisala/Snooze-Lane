@@ -22,33 +22,37 @@ struct Home: View {
                 showLocationSearch: $showSearchModal
             )
 
-            // Floating Search Bar at the Bottom
-            Button(action: {
-                showSearchModal = true
-            }) {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                        .padding(.leading, 15)
+            // Floating Search Bar at the Bottom (State-based visibility)
+            if mapState.shouldShowSearchBar {
+                Button(action: {
+                    showSearchModal = true
+                }) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .padding(.leading, 15)
 
-                    Text("Where To?")
-                        .foregroundColor(.gray)
-                        .padding(.leading, 8)
+                        Text("Where To?")
+                            .foregroundColor(.gray)
+                            .padding(.leading, 8)
 
-                    Spacer()
+                        Spacer()
 
-                    Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                        .foregroundColor(.gray)
-                        .padding(.trailing, 15)
+                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                            .foregroundColor(.gray)
+                            .padding(.trailing, 15)
+                    }
+                    .frame(height: 50)
+                    .background(
+                        Capsule()
+                            .fill(Color.white)
+                            .shadow(radius: 5)
+                    )
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
-                .frame(height: 50)
-                .background(
-                    Capsule()
-                        .fill(Color.white)
-                        .shadow(radius: 5)
-                )
-                .padding(.horizontal)
-                .padding(.bottom, 20)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.easeInOut(duration: 0.3), value: mapState)
             }
         }
         .sheet(isPresented: $showSearchModal) {
