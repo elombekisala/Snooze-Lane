@@ -20,9 +20,15 @@ struct MapView: View {
     @State private var showSettings = false
     @State private var mapType: MKMapType = .standard
 
+    // Navigation state
+    @State private var selectedDestination: CLLocationCoordinate2D?
+    @State private var polylineCoordinates: [CLLocationCoordinate2D] = []
+    @State private var isNavigating = false
+    @State private var locationUpdateTimer: Timer?
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Map
+            // Map with polyline and annotations
             Map(
                 coordinateRegion: $region, showsUserLocation: true,
                 userTrackingMode: .constant(.follow)
@@ -30,6 +36,45 @@ struct MapView: View {
             .mapStyle(mapType == .standard ? .standard : mapType == .satellite ? .imagery : .hybrid)
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.3), value: mapState)
+            .overlay(
+                // Polyline and destination overlay
+                ZStack {
+                    // Polyline path
+                    if polylineCoordinates.count >= 2 {
+                        Path { path in
+                            // Convert coordinates to screen points (simplified)
+                            let startPoint = CGPoint(x: 100, y: 300)
+                            let endPoint = CGPoint(x: 300, y: 300)
+
+                            path.move(to: startPoint)
+                            path.addLine(to: endPoint)
+                        }
+                        .stroke(Color.blue, lineWidth: 4)
+                    }
+
+                    // Destination annotation
+                    if let destination = selectedDestination {
+                        Image(systemName: "mappin.circle.fill")
+                            .foregroundColor(.red)
+                            .font(.title)
+                            .background(Circle().fill(.white))
+                            .position(
+                                x: 300, y: 300  // Placeholder position
+                            )
+                    }
+                }
+            )
+            .onTapGesture(count: 1) {
+                // Single tap to clear selection
+                clearDestination()
+            }
+            .gesture(
+                LongPressGesture(minimumDuration: 0.5)
+                    .onEnded { _ in
+                        // Handle long press - we'll implement coordinate conversion differently
+                        handleLongPress()
+                    }
+            )
 
             // Top Controls - Pinned to top right (State-based visibility)
             if mapState.shouldShowTopControls {
@@ -130,7 +175,10 @@ struct MapView: View {
         }
         .onAppear {
             // Request location when view appears
-            // locationManager.requestLocation()
+            locationManager.startUpdatingLocation()
+
+            // Start location update timer for real-time polyline updates
+            startLocationUpdateTimer()
         }
         .onChange(of: mapState) {
             // Handle state changes with animations
@@ -139,9 +187,106 @@ struct MapView: View {
                 showMapControls = mapState.shouldShowMapControls
             }
         }
+        .onChange(of: locationManager.location) { _ in
+            // Update polyline when user location changes
+            if isNavigating {
+                updatePolylineCoordinates()
+            }
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
+    }
+
+    private func handleLongPress() {
+        // For now, use the center of the current map view as the destination
+        // In a real implementation, you'd convert screen coordinates to map coordinates
+        let coordinate = region.center
+        setDestination(coordinate)
+
+        // Update map state to show location details
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .locationSelected
+        }
+
+        // Scale map to show both user location and destination
+        scaleMapToShowBothLocations()
+    }
+
+    private func setDestination(_ coordinate: CLLocationCoordinate2D) {
+        selectedDestination = coordinate
+
+        // Update polyline coordinates
+        updatePolylineCoordinates()
+
+        isNavigating = true
+    }
+
+    private func clearDestination() {
+        selectedDestination = nil
+        polylineCoordinates = []
+        isNavigating = false
+
+        // Reset map state
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .noInput
+        }
+    }
+
+    private func updatePolylineCoordinates() {
+        guard let userLocation = locationManager.location,
+            let destination = selectedDestination
+        else { return }
+
+        // Create polyline from user location to destination
+        polylineCoordinates = [
+            userLocation.coordinate,
+            destination,
+        ]
+
+        // Scale map to show both locations
+        scaleMapToShowBothLocations()
+    }
+
+    private func scaleMapToShowBothLocations() {
+        guard let userLocation = locationManager.location,
+            let destination = selectedDestination
+        else { return }
+
+        // Calculate the region that includes both locations
+        let centerLat = (userLocation.coordinate.latitude + destination.latitude) / 2
+        let centerLon = (userLocation.coordinate.longitude + destination.longitude) / 2
+
+        let latDelta = abs(userLocation.coordinate.latitude - destination.latitude) * 1.5
+        let lonDelta = abs(userLocation.coordinate.longitude - destination.longitude) * 1.5
+
+        // Ensure minimum zoom level
+        let minDelta = 0.01
+        let finalLatDelta = max(latDelta, minDelta)
+        let finalLonDelta = max(lonDelta, minDelta)
+
+        let newRegion = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+            span: MKCoordinateSpan(latitudeDelta: finalLatDelta, longitudeDelta: finalLonDelta)
+        )
+
+        withAnimation(.easeInOut(duration: 0.5)) {
+            region = newRegion
+        }
+    }
+
+    private func startLocationUpdateTimer() {
+        // Update polyline every 2 seconds when navigating
+        locationUpdateTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            if isNavigating {
+                updatePolylineCoordinates()
+            }
+        }
+    }
+
+    private func stopLocationUpdateTimer() {
+        locationUpdateTimer?.invalidate()
+        locationUpdateTimer = nil
     }
 }
 
