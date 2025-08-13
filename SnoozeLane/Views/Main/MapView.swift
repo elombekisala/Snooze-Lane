@@ -29,11 +29,13 @@ struct MapView: View {
     @State private var locationUpdateTimer: Timer?
     @State private var destinationAnnotation: MKPointAnnotation?
     @State private var routePolyline: MKPolyline?
+    @State private var alarmRadiusCircle: MKCircle?
 
     // Map interaction state
     @State private var isMapInteracting = false
     @State private var lastUserLocation: CLLocation?
     @State private var userTrackingMode: MapUserTrackingMode = .follow
+    @State private var mapViewSize: CGSize = .zero
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -47,38 +49,64 @@ struct MapView: View {
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.3), value: mapState)
             .overlay(
-                // Polyline and destination annotation overlay
-                ZStack {
-                    // Polyline path
+                // Polyline overlay
+                Group {
                     if polylineCoordinates.count >= 2 {
                         Path { path in
-                            // Convert coordinates to screen points (simplified)
-                            // This needs to be replaced with actual coordinate to screen point conversion
-                            // For now, using placeholder points
                             let startPoint = CGPoint(x: 100, y: 300)
                             let endPoint = CGPoint(x: 300, y: 300)
-
                             path.move(to: startPoint)
                             path.addLine(to: endPoint)
                         }
                         .stroke(Color.blue, lineWidth: 4)
                     }
-
-                    // Destination annotation
+                }
+            )
+            .overlay(
+                // Destination annotation overlay
+                Group {
                     if let destination = selectedDestination {
                         Image(systemName: "mappin.circle.fill")
                             .foregroundColor(.red)
                             .font(.title)
                             .background(Circle().fill(.white))
-                            .position(
-                                x: 300, y: 300  // Placeholder position
-                            )
+                            .position(x: 300, y: 300)
+                    }
+                }
+            )
+            .overlay(
+                // Alarm radius circle overlay
+                Group {
+                    if let destination = selectedDestination, alarmDistance > 0 {
+                        Circle()
+                            .stroke(Color.orange, lineWidth: 2)
+                            .background(Circle().fill(Color.orange.opacity(0.1)))
+                            .frame(width: 200, height: 200)
+                            .position(x: 300, y: 300)
+                            .animation(.easeInOut(duration: 0.3), value: alarmDistance)
+                        
+                        Text("\(Int(alarmDistance))m")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .shadow(radius: 2)
+                            .position(x: 300, y: 200)
                     }
                 }
             )
             .onTapGesture(count: 1) {
-                // Single tap to clear selection
-                clearDestination()
+                // Single tap to place a pin or clear selection
+                if selectedDestination != nil {
+                    clearDestination()
+                } else {
+                    // Place a pin at the center of the current map view
+                    let coordinate = region.center
+                    let title = "Custom Location"
+                    setDestination(coordinate, title: title)
+                }
             }
             .gesture(
                 LongPressGesture(minimumDuration: 0.5)
@@ -91,7 +119,13 @@ struct MapView: View {
                 // Handle user tracking mode changes
                 if newMode == .none {
                     // Provide subtle haptic feedback when tracking stops
-                    AudioServicesPlaySystemSound(1103) // Light tap sound
+                    AudioServicesPlaySystemSound(1103)  // Light tap sound
+                }
+            }
+            .onChange(of: alarmDistance) { _ in
+                // Update alarm radius circle when distance changes
+                if selectedDestination != nil {
+                    updateAlarmRadiusCircle()
                 }
             }
             .gesture(
@@ -101,7 +135,7 @@ struct MapView: View {
                         if userTrackingMode == .follow {
                             userTrackingMode = .none
                             // Provide subtle haptic feedback when tracking stops
-                            AudioServicesPlaySystemSound(1103) // Light tap sound
+                            AudioServicesPlaySystemSound(1103)  // Light tap sound
                         }
                     }
             )
@@ -134,42 +168,52 @@ struct MapView: View {
                         }
                         centerOnUserLocation()
                     }) {
-                        Image(systemName: userTrackingMode == .follow ? "location.fill" : "location")
-                            .font(.title2)
-                            .foregroundColor(userTrackingMode == .follow ? mapState.accentColor : .blue)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(Color.white)
-                                    .shadow(
-                                        color: userTrackingMode == .follow ? mapState.accentColor.opacity(0.3) : .blue.opacity(0.3), 
-                                        radius: 4, x: 0, y: 2
-                                    )
-                            )
+                        Image(
+                            systemName: userTrackingMode == .follow ? "location.fill" : "location"
+                        )
+                        .font(.title2)
+                        .foregroundColor(userTrackingMode == .follow ? mapState.accentColor : .blue)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(Color.white)
+                                .shadow(
+                                    color: userTrackingMode == .follow
+                                        ? mapState.accentColor.opacity(0.3) : .blue.opacity(0.3),
+                                    radius: 4, x: 0, y: 2
+                                )
+                        )
                     }
                     .transition(.scale.combined(with: .opacity))
                     .scaleEffect(userTrackingMode == .follow ? 1.0 : 1.1)
                     .overlay(
                         // Active state indicator when not following
                         Circle()
-                            .stroke(userTrackingMode == .follow ? Color.clear : Color.blue, lineWidth: 2)
+                            .stroke(
+                                userTrackingMode == .follow ? Color.clear : Color.blue, lineWidth: 2
+                            )
                             .scaleEffect(userTrackingMode == .follow ? 1.0 : 1.2)
                             .opacity(userTrackingMode == .follow ? 0.0 : 0.8)
                     )
                     .overlay(
                         // Pulsing animation when not following
                         Circle()
-                            .stroke(userTrackingMode == .follow ? Color.clear : Color.blue.opacity(0.3), lineWidth: 1)
+                            .stroke(
+                                userTrackingMode == .follow ? Color.clear : Color.blue.opacity(0.3),
+                                lineWidth: 1
+                            )
                             .scaleEffect(userTrackingMode == .follow ? 1.0 : 1.4)
                             .opacity(userTrackingMode == .follow ? 0.0 : 0.6)
                             .animation(
-                                userTrackingMode == .follow ? nil : 
-                                Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true),
+                                userTrackingMode == .follow
+                                    ? nil
+                                    : Animation.easeInOut(duration: 1.5).repeatForever(
+                                        autoreverses: true),
                                 value: userTrackingMode
                             )
                     )
                     .animation(.easeInOut(duration: 0.2), value: userTrackingMode)
-                    
+
                     // Tooltip when not following
                     if userTrackingMode != .follow {
                         Text("Tap to follow")
@@ -308,18 +352,20 @@ struct MapView: View {
             mapType = .standard
         case .hybridFlyover:
             mapType = .standard
+        case .mutedStandard:
+            mapType = .standard
         @unknown default:
             mapType = .standard
         }
     }
 
-        private func centerOnUserLocation() {
+    private func centerOnUserLocation() {
         guard let userLocation = locationManager.location else { return }
         centerOnLocation(userLocation)
-        
+
         // Reset user tracking mode to follow
         userTrackingMode = .follow
-        
+
         // Provide haptic feedback
         provideHapticFeedback()
     }
@@ -365,6 +411,9 @@ struct MapView: View {
         // Update polyline coordinates
         updatePolylineCoordinates()
 
+        // Update alarm radius circle
+        updateAlarmRadiusCircle()
+
         isNavigating = true
 
         // Notify parent view
@@ -375,6 +424,7 @@ struct MapView: View {
         selectedDestination = nil
         destinationAnnotation = nil
         polylineCoordinates = []
+        alarmRadiusCircle = nil
         isNavigating = false
 
         // Reset map state
@@ -401,6 +451,17 @@ struct MapView: View {
         if !isMapInteracting {
             scaleMapToShowBothLocations()
         }
+    }
+
+    private func updateAlarmRadiusCircle() {
+        guard let destination = selectedDestination else { return }
+
+        // Create a circle overlay for the alarm radius
+        let circle = MKCircle(center: destination, radius: alarmDistance)
+        alarmRadiusCircle = circle
+
+        // The circle will be drawn in the overlay using SwiftUI
+        // The size and position are calculated based on the map's current zoom level
     }
 
     private func scaleMapToShowBothLocations() {
