@@ -208,28 +208,42 @@ class LocationSearchViewModel: NSObject, ObservableObject {
         print("🔍 SEARCH RESULT SELECTED:")
         print("   📍 Title: \(localSearch.title)")
         print("   📍 Subtitle: \(localSearch.subtitle)")
-        
+
         let searchRequest = MKLocalSearch.Request(completion: localSearch)
         let search = MKLocalSearch(request: searchRequest)
-        
+
         print("   🔄 Starting coordinate search...")
+        print("   📍 Search request: \(searchRequest)")
+        print("   📍 Search object: \(search)")
+        
+        // Add a timeout to detect if search is hanging
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+            print("⏰ Search timeout - search may be hanging")
+        }
+        
         search.start { [weak self] response, error in
-            guard let self = self else { return }
+            print("🔄 Search completion handler called!")
+            guard let self = self else { 
+                print("❌ Self is nil in completion handler")
+                return 
+            }
 
             if let error = error {
                 print("❌ Location search failed with error: \(error.localizedDescription)")
+                print("❌ Error domain: \(error._domain)")
+                print("❌ Error code: \(error._code)")
                 return
             }
 
             print("📋 SEARCH RESPONSE RECEIVED:")
             print("   📍 Response items count: \(response?.mapItems.count ?? 0)")
             print("   📍 Response region: \(response?.boundingRegion)")
-            
-            guard let item = response?.mapItems.first else { 
+
+            guard let item = response?.mapItems.first else {
                 print("❌ No map items found in search response")
-                return 
+                return
             }
-            
+
             print("📍 MAP ITEM DETAILS:")
             print("   📍 Name: \(item.name ?? "N/A")")
             print("   📍 Placemark: \(item.placemark)")
@@ -237,13 +251,13 @@ class LocationSearchViewModel: NSObject, ObservableObject {
             print("   📍 Country: \(item.placemark.country ?? "N/A")")
             print("   📍 Administrative Area: \(item.placemark.administrativeArea ?? "N/A")")
             print("   📍 Locality: \(item.placemark.locality ?? "N/A")")
-            
+
             let coordinate = item.placemark.coordinate
             print("✅ COORDINATES EXTRACTED:")
             print("   📍 Latitude: \(coordinate.latitude)")
             print("   📍 Longitude: \(coordinate.longitude)")
             print("   📍 Full Coordinate: \(coordinate)")
-            
+
             self.selectedSnoozeLaneLocation = SnoozeLaneLocation(
                 title: localSearch.title,
                 subtitle: localSearch.subtitle,
