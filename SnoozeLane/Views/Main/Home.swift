@@ -63,7 +63,7 @@ struct Home: View {
                     Text("Search Destinations")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(Color("1"))
+                        .foregroundColor(.white)
 
                     Spacer()
 
@@ -72,7 +72,7 @@ struct Home: View {
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title2)
-                            .foregroundColor(Color("3"))
+                            .foregroundColor(.white)
                     }
                 }
                 .padding(.horizontal)
@@ -81,27 +81,31 @@ struct Home: View {
                 // Search Bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(Color("3"))
+                        .foregroundColor(.white)
                         .padding(.leading, 12)
 
                     TextField("Search destinations...", text: $locationViewModel.queryFragment)
                         .font(.system(size: 18, weight: .medium))
                         .textFieldStyle(PlainTextFieldStyle())
-                        .foregroundColor(Color("1"))
+                        .foregroundColor(.white)
+                        .placeholder(when: locationViewModel.queryFragment.isEmpty) {
+                            Text("Search destinations...")
+                                .foregroundColor(.white.opacity(0.7))
+                        }
 
                     if !locationViewModel.queryFragment.isEmpty {
                         Button(action: {
                             locationViewModel.queryFragment = ""
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(Color("3"))
+                                .foregroundColor(.white)
                         }
                         .padding(.trailing, 12)
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Color("6").opacity(0.1))
+                .background(Color.black.opacity(0.3))
                 .cornerRadius(12)
                 .padding(.horizontal)
 
@@ -111,7 +115,7 @@ struct Home: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Quick Destinations")
                             .font(.headline)
-                            .foregroundColor(Color("1"))
+                            .foregroundColor(.white)
                             .padding(.horizontal)
 
                         // Home
@@ -163,7 +167,7 @@ struct Home: View {
                                 && !locationViewModel.queryFragment.isEmpty
                             {
                                 Text("No results found for \"\(locationViewModel.queryFragment)\"")
-                                    .foregroundColor(Color("2"))
+                                    .foregroundColor(.white.opacity(0.8))
                                     .padding()
                             } else {
                                 ForEach(locationViewModel.results, id: \.self) { result in
@@ -184,7 +188,7 @@ struct Home: View {
 
                 Spacer()
             }
-            .background(Color("6"))
+            .background(Color.black)
             .presentationDetents([.medium, .large])
         }
     }
@@ -215,26 +219,41 @@ struct QuickDestinationButton: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color("1"))
+                        .foregroundColor(.white)
 
                     Text(subtitle)
                         .font(.system(size: 14))
-                        .foregroundColor(Color("2"))
+                        .foregroundColor(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundColor(Color("3"))
+                    .foregroundColor(.white.opacity(0.6))
                     .font(.system(size: 14, weight: .medium))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color("6").opacity(0.1))
+            .background(Color.white.opacity(0.1))
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
         .padding(.horizontal)
+    }
+}
+
+// MARK: - Extensions
+extension View {
+    func placeholder<Content: View>(
+        when shouldShow: Bool,
+        alignment: Alignment = .leading,
+        @ViewBuilder placeholder: () -> Content
+    ) -> some View {
+
+        ZStack(alignment: alignment) {
+            placeholder().opacity(shouldShow ? 1 : 0)
+            self
+        }
     }
 }
 

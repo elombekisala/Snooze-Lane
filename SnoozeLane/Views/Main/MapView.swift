@@ -17,6 +17,8 @@ struct MapView: View {
 
     @State private var showTopControls = true
     @State private var showMapControls = true
+    @State private var showSettings = false
+    @State private var mapType: MKMapType = .standard
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -25,6 +27,7 @@ struct MapView: View {
                 coordinateRegion: $region, showsUserLocation: true,
                 userTrackingMode: .constant(.follow)
             )
+            .mapStyle(mapType == .standard ? .standard : mapType == .satellite ? .imagery : .hybrid)
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.3), value: mapState)
 
@@ -34,6 +37,16 @@ struct MapView: View {
                     // Map Type Button
                     Button(action: {
                         // Toggle map type if needed
+                        switch mapType {
+                        case .standard:
+                            mapType = .satellite
+                        case .satellite:
+                            mapType = .hybrid
+                        case .hybrid:
+                            mapType = .standard
+                        @unknown default:
+                            mapType = .standard
+                        }
                     }) {
                         Image(systemName: "map")
                             .font(.title2)
@@ -54,6 +67,24 @@ struct MapView: View {
                         // Center on user location
                     }) {
                         Image(systemName: "location.fill")
+                            .font(.title2)
+                            .foregroundColor(mapState.accentColor)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(Color.white)
+                                    .shadow(
+                                        color: mapState.accentColor.opacity(0.3), radius: 4, x: 0,
+                                        y: 2)
+                            )
+                    }
+                    .transition(.scale.combined(with: .opacity))
+
+                    // Settings Button
+                    Button(action: {
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gearshape.fill")
                             .font(.title2)
                             .foregroundColor(mapState.accentColor)
                             .frame(width: 44, height: 44)
@@ -107,6 +138,9 @@ struct MapView: View {
                 showTopControls = mapState.shouldShowTopControls
                 showMapControls = mapState.shouldShowMapControls
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
     }
 }

@@ -37,14 +37,14 @@ struct LocationSearchResultsCell: View {
                 Text(title)
                     .font(.system(size: 20))
                     .fontWeight(.bold)
-                    .foregroundColor(Color("1"))
+                    .foregroundColor(.white)
 
                 Text(subtitle)
                     .font(.system(size: 14))
-                    .foregroundColor(Color("2"))
+                    .foregroundColor(.white.opacity(0.8))
 
                 Divider()
-                    .background(.white)
+                    .background(.white.opacity(0.3))
                     .padding(.trailing, 8)
             }
             .padding(.leading, 8)
