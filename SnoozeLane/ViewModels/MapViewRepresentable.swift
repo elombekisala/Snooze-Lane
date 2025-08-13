@@ -143,21 +143,18 @@ extension MapViewRepresentable {
             isFollowingUser.wrappedValue = true
         }
 
-            func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
-        // Update circle overlay
-        if let existingOverlay = circleOverlay {
-            parent.mapView.removeOverlay(existingOverlay)
-        }
-        let circle = MKCircle(center: coordinate, radius: radius)
-        parent.mapView.addOverlay(circle)
-        circleOverlay = circle
+                    func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
+            // Update circle overlay
+            if let existingOverlay = circleOverlay {
+                parent.mapView.removeOverlay(existingOverlay)
+            }
+            let circle = MKCircle(center: coordinate, radius: radius)
+            parent.mapView.addOverlay(circle)
+            circleOverlay = circle
 
-        // Update user to destination line
-        updateUserToDestinationLine()
-        
-        // Set up continuous polyline updates when user location changes
-        setupContinuousPolylineUpdates()
-    }
+            // Update user to destination line
+            updateUserToDestinationLine()
+        }
 
         private func updateUserToDestinationLine() {
             if let existingLine = userToDestinationLine {
@@ -329,21 +326,7 @@ extension MapViewRepresentable {
             }
         }
         
-        // MARK: - Continuous Polyline Updates
-        private func setupContinuousPolylineUpdates() {
-            // Remove existing notification observer to avoid duplicates
-            NotificationCenter.default.removeObserver(self, name: .didUpdateLocation, object: nil)
-            
-            // Add notification observer for location updates
-            NotificationCenter.default.addObserver(
-                forName: .didUpdateLocation,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                // Update polyline whenever user location changes
-                self?.updateUserToDestinationLine()
-            }
-        }
+
         
 
     }
