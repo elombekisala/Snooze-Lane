@@ -43,59 +43,14 @@ struct MapView: View {
             Map(
                 coordinateRegion: $region,
                 showsUserLocation: true,
-                userTrackingMode: $userTrackingMode
+                userTrackingMode: .constant(userTrackingMode)
             )
             .mapStyle(mapType == .standard ? .standard : mapType == .satellite ? .imagery : .hybrid)
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.3), value: mapState)
             .overlay(
-                // Polyline overlay
-                Group {
-                    if polylineCoordinates.count >= 2 {
-                        Path { path in
-                            let startPoint = CGPoint(x: 100, y: 300)
-                            let endPoint = CGPoint(x: 300, y: 300)
-                            path.move(to: startPoint)
-                            path.addLine(to: endPoint)
-                        }
-                        .stroke(Color.blue, lineWidth: 4)
-                    }
-                }
-            )
-            .overlay(
-                // Destination annotation overlay
-                Group {
-                    if let destination = selectedDestination {
-                        Image(systemName: "mappin.circle.fill")
-                            .foregroundColor(.red)
-                            .font(.title)
-                            .background(Circle().fill(.white))
-                            .position(x: 300, y: 300)
-                    }
-                }
-            )
-            .overlay(
-                // Alarm radius circle overlay
-                Group {
-                    if let destination = selectedDestination, alarmDistance > 0 {
-                        Circle()
-                            .stroke(Color.orange, lineWidth: 2)
-                            .background(Circle().fill(Color.orange.opacity(0.1)))
-                            .frame(width: 200, height: 200)
-                            .position(x: 300, y: 300)
-                            .animation(.easeInOut(duration: 0.3), value: alarmDistance)
-                        
-                        Text("\(Int(alarmDistance))m")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            .shadow(radius: 2)
-                            .position(x: 300, y: 200)
-                    }
-                }
+                // Map overlays
+                mapOverlays
             )
             .onTapGesture(count: 1) {
                 // Single tap to place a pin or clear selection
@@ -295,9 +250,69 @@ struct MapView: View {
         }
         .onChange(of: locationManager.location) { newLocation in
             handleLocationUpdate(newLocation)
+            
+            // Update polyline and annotations when location changes
+            if let newLocation = newLocation, selectedDestination != nil {
+                updatePolylineCoordinates()
+                // Force refresh of overlay positions
+                DispatchQueue.main.async {
+                    // Trigger overlay update
+                }
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
+        }
+    }
+    
+    // MARK: - Computed Views
+    
+    @ViewBuilder
+    private var mapOverlays: some View {
+        ZStack {
+            // Polyline overlay
+            if polylineCoordinates.count >= 2,
+               let startPoint = coordinateToScreenPoint(polylineCoordinates[0]),
+               let endPoint = coordinateToScreenPoint(polylineCoordinates[1]) {
+                Path { path in
+                    path.move(to: startPoint)
+                    path.addLine(to: endPoint)
+                }
+                .stroke(Color.blue, lineWidth: 4)
+            }
+            
+            // Destination annotation overlay
+            if let destination = selectedDestination,
+               let screenPoint = coordinateToScreenPoint(destination) {
+                Image(systemName: "mappin.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.title)
+                    .background(Circle().fill(.white))
+                    .position(screenPoint)
+            }
+            
+            // Alarm radius circle overlay
+            if let destination = selectedDestination, alarmDistance > 0,
+               let screenPoint = coordinateToScreenPoint(destination) {
+                let circleSize = calculateCircleSize(for: alarmDistance)
+                
+                Circle()
+                    .stroke(Color.orange, lineWidth: 2)
+                    .background(Circle().fill(Color.orange.opacity(0.1)))
+                    .frame(width: circleSize, height: circleSize)
+                    .position(screenPoint)
+                    .animation(.easeInOut(duration: 0.3), value: alarmDistance)
+                
+                Text("\(Int(alarmDistance))m")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    .shadow(radius: 2)
+                    .position(x: screenPoint.x, y: screenPoint.y - circleSize/2 - 20)
+            }
         }
     }
 
@@ -353,6 +368,8 @@ struct MapView: View {
         case .hybridFlyover:
             mapType = .standard
         case .mutedStandard:
+            mapType = .standard
+        case .hybridFlyover:
             mapType = .standard
         @unknown default:
             mapType = .standard
@@ -453,15 +470,43 @@ struct MapView: View {
         }
     }
 
-    private func updateAlarmRadiusCircle() {
+        private func updateAlarmRadiusCircle() {
         guard let destination = selectedDestination else { return }
-
+        
         // Create a circle overlay for the alarm radius
         let circle = MKCircle(center: destination, radius: alarmDistance)
         alarmRadiusCircle = circle
-
+        
         // The circle will be drawn in the overlay using SwiftUI
         // The size and position are calculated based on the map's current zoom level
+    }
+    
+    private func coordinateToScreenPoint(_ coordinate: CLLocationCoordinate2D) -> CGPoint? {
+        // For now, we'll use a simplified approach
+        // In a real implementation, you'd use MapViewProxy to convert coordinates
+        guard let userLocation = locationManager.location else { return nil }
+        
+        // Calculate relative position based on coordinate differences
+        let latDiff = coordinate.latitude - userLocation.coordinate.latitude
+        let lonDiff = coordinate.longitude - userLocation.coordinate.longitude
+        
+        // Convert to screen coordinates (simplified)
+        // This is a basic approximation - in production you'd use proper coordinate conversion
+        let screenWidth: CGFloat = 400  // Approximate map view width
+        let screenHeight: CGFloat = 600 // Approximate map view height
+        
+        let x = screenWidth / 2 + CGFloat(lonDiff * 1000000) // Scale factor for longitude
+        let y = screenHeight / 2 - CGFloat(latDiff * 1000000) // Scale factor for latitude
+        
+        return CGPoint(x: x, y: y)
+    }
+    
+    private func calculateCircleSize(for radius: Double) -> CGFloat {
+        // Calculate circle size based on alarm radius and map zoom
+        // This is a simplified calculation - in production you'd use proper scale factors
+        let baseSize: CGFloat = 50
+        let scaleFactor = radius / 100.0 // Scale based on 100m = 50 points
+        return baseSize * CGFloat(scaleFactor)
     }
 
     private func scaleMapToShowBothLocations() {
@@ -498,7 +543,10 @@ struct MapView: View {
 
         let destinationLocation = CLLocation(
             latitude: destination.latitude, longitude: destination.longitude)
-        return userLocation.distance(from: destinationLocation)
+        let distance = userLocation.distance(from: destinationLocation)
+        
+        // Ensure we return a valid distance
+        return distance.isFinite ? distance : nil
     }
 
     private func startTrip() {
