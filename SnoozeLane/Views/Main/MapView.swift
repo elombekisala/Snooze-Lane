@@ -414,15 +414,19 @@ struct MapView: View {
         // and convert it to map coordinates using MapViewProxy
         let coordinate = region.center
         let title = "Selected Location"
-        
+
         // DEBUG: Log the coordinate mismatch
         print("🔍 LONG PRESS DEBUG (handleLongPress):")
-        print("   📍 Map Center (where pin is placed): \(coordinate.latitude), \(coordinate.longitude)")
-        print("   🗺️  Current Map Region: center(\(region.center.latitude), \(region.center.longitude)), span(\(region.span.latitudeDelta), \(region.span.longitudeDelta))")
+        print(
+            "   📍 Map Center (where pin is placed): \(coordinate.latitude), \(coordinate.longitude)"
+        )
+        print(
+            "   🗺️  Current Map Region: center(\(region.center.latitude), \(region.center.longitude)), span(\(region.span.latitudeDelta), \(region.span.longitudeDelta))"
+        )
         print("   📱 Screen Size: \(UIScreen.main.bounds.width) x \(UIScreen.main.bounds.height)")
         print("   ⚠️  ISSUE: Pin placed at map center, not actual long press location!")
         print("   🎯 This explains why pin placement is inaccurate!")
-        
+
         setDestination(coordinate, title: title)
 
         // Update map state to show location details
@@ -479,13 +483,13 @@ struct MapView: View {
         // Convert screen coordinates to map coordinates
         let coordinate = screenPointToCoordinate(location)
         let title = "Selected Location"
-        
+
         // DEBUG: Log the long press location handling
         print("👆 LONG PRESS LOCATION DEBUG:")
         print("   📱 Screen Location: \(location.x), \(location.y)")
         print("   🎯 Converted Coordinate: \(coordinate.latitude), \(coordinate.longitude)")
         print("   ✅ This function IS being called with actual screen coordinates!")
-        
+
         setDestination(coordinate, title: title)
 
         // Update map state to show location details
@@ -507,7 +511,9 @@ struct MapView: View {
         print("🎯 SET DESTINATION DEBUG:")
         print("   📍 Coordinate being set: \(coordinate.latitude), \(coordinate.longitude)")
         print("   🏷️  Title: \(title)")
-        print("   📍 Selected destination stored: \(selectedDestination?.latitude ?? 0), \(selectedDestination?.longitude ?? 0)")
+        print(
+            "   📍 Selected destination stored: \(selectedDestination?.latitude ?? 0), \(selectedDestination?.longitude ?? 0)"
+        )
 
         // Create destination annotation
         let annotation = MKPointAnnotation()
@@ -761,12 +767,12 @@ struct LocationDetailsCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Destination Selected")
                         .font(.headline)
-                        .foregroundColor(Color("1"))
+                        .foregroundColor(.white)
 
                     if let distance = distance {
                         Text("Distance: \(formatDistance(distance))")
                             .font(.subheadline)
-                            .foregroundColor(Color("2"))
+                            .foregroundColor(.white.opacity(0.8))
                     }
                 }
 
@@ -785,9 +791,13 @@ struct LocationDetailsCard: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.8))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        )
         .cornerRadius(16)
-        .shadow(radius: 8)
+        .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 4)
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
@@ -821,7 +831,7 @@ struct AlarmSettingsCard: View {
 
                 Text("Set Alarm Radius")
                     .font(.headline)
-                    .foregroundColor(Color("1"))
+                    .foregroundColor(.white)
 
                 Spacer()
 
@@ -838,16 +848,20 @@ struct AlarmSettingsCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Distance: \(Int(alarmDistance)) meters")
                     .font(.subheadline)
-                    .foregroundColor(Color("2"))
+                    .foregroundColor(.white.opacity(0.8))
 
                 Slider(value: $alarmDistance, in: 100...1000, step: 50)
                     .accentColor(mapState.accentColor)
             }
         }
         .padding()
-        .background(Color.white)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.8))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        )
         .cornerRadius(16)
-        .shadow(radius: 8)
+        .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 4)
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
@@ -868,16 +882,16 @@ struct TripProgressCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Trip in Progress")
                         .font(.headline)
-                        .foregroundColor(Color("1"))
+                        .foregroundColor(.white)
 
                     if let distance = distance {
                         Text("Distance remaining: \(formatDistance(distance))")
                             .font(.subheadline)
-                            .foregroundColor(Color("2"))
+                            .foregroundColor(.white.opacity(0.8))
                     } else {
                         Text("Approaching destination")
                             .font(.subheadline)
-                            .foregroundColor(Color("2"))
+                            .foregroundColor(.white.opacity(0.8))
                     }
                 }
 
@@ -894,9 +908,13 @@ struct TripProgressCard: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.8))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        )
         .cornerRadius(16)
-        .shadow(radius: 8)
+        .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 4)
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
