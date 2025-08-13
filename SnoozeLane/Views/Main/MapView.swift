@@ -414,6 +414,15 @@ struct MapView: View {
         // and convert it to map coordinates using MapViewProxy
         let coordinate = region.center
         let title = "Selected Location"
+        
+        // DEBUG: Log the coordinate mismatch
+        print("🔍 LONG PRESS DEBUG (handleLongPress):")
+        print("   📍 Map Center (where pin is placed): \(coordinate.latitude), \(coordinate.longitude)")
+        print("   🗺️  Current Map Region: center(\(region.center.latitude), \(region.center.longitude)), span(\(region.span.latitudeDelta), \(region.span.longitudeDelta))")
+        print("   📱 Screen Size: \(UIScreen.main.bounds.width) x \(UIScreen.main.bounds.height)")
+        print("   ⚠️  ISSUE: Pin placed at map center, not actual long press location!")
+        print("   🎯 This explains why pin placement is inaccurate!")
+        
         setDestination(coordinate, title: title)
 
         // Update map state to show location details
@@ -452,6 +461,17 @@ struct MapView: View {
             longitude: region.center.longitude + lonDiff
         )
 
+        // DEBUG: Log the coordinate conversion process
+        print("🔄 COORDINATE CONVERSION DEBUG:")
+        print("   📱 Screen Point: \(screenPoint.x), \(screenPoint.y)")
+        print("   📱 Screen Size: \(screenWidth) x \(screenHeight)")
+        print("   📍 Map Center: \(region.center.latitude), \(region.center.longitude)")
+        print("   🗺️  Map Span: \(region.span.latitudeDelta), \(region.span.longitudeDelta)")
+        print("   📐 Offsets: x=\(xOffset), y=\(yOffset)")
+        print("   📏 Scales: lon=\(lonScale), lat=\(latScale)")
+        print("   📐 Diffs: lon=\(lonDiff), lat=\(latDiff)")
+        print("   🎯 Final Coordinate: \(coordinate.latitude), \(coordinate.longitude)")
+
         return coordinate
     }
 
@@ -459,6 +479,13 @@ struct MapView: View {
         // Convert screen coordinates to map coordinates
         let coordinate = screenPointToCoordinate(location)
         let title = "Selected Location"
+        
+        // DEBUG: Log the long press location handling
+        print("👆 LONG PRESS LOCATION DEBUG:")
+        print("   📱 Screen Location: \(location.x), \(location.y)")
+        print("   🎯 Converted Coordinate: \(coordinate.latitude), \(coordinate.longitude)")
+        print("   ✅ This function IS being called with actual screen coordinates!")
+        
         setDestination(coordinate, title: title)
 
         // Update map state to show location details
@@ -475,6 +502,12 @@ struct MapView: View {
 
     private func setDestination(_ coordinate: CLLocationCoordinate2D, title: String) {
         selectedDestination = coordinate
+
+        // DEBUG: Log what coordinates are actually being set
+        print("🎯 SET DESTINATION DEBUG:")
+        print("   📍 Coordinate being set: \(coordinate.latitude), \(coordinate.longitude)")
+        print("   🏷️  Title: \(title)")
+        print("   📍 Selected destination stored: \(selectedDestination?.latitude ?? 0), \(selectedDestination?.longitude ?? 0)")
 
         // Create destination annotation
         let annotation = MKPointAnnotation()
