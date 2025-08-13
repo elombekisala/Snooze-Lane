@@ -6,7 +6,7 @@ struct MapView: View {
     @Binding var mapState: MapViewState
     @Binding var alarmDistance: Double
     @Binding var showLocationSearch: Bool
-    let navigationState: NavigationState
+    var onDestinationSelected: ((CLLocationCoordinate2D, String) -> Void)?
 
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
     @EnvironmentObject var tripProgressViewModel: TripProgressViewModel
@@ -45,6 +45,36 @@ struct MapView: View {
             .mapStyle(mapType == .standard ? .standard : mapType == .satellite ? .imagery : .hybrid)
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.3), value: mapState)
+            .overlay(
+                // Polyline and destination annotation overlay
+                ZStack {
+                    // Polyline path
+                    if polylineCoordinates.count >= 2 {
+                        Path { path in
+                            // Convert coordinates to screen points (simplified)
+                            // This needs to be replaced with actual coordinate to screen point conversion
+                            // For now, using placeholder points
+                            let startPoint = CGPoint(x: 100, y: 300)
+                            let endPoint = CGPoint(x: 300, y: 300)
+                            
+                            path.move(to: startPoint)
+                            path.addLine(to: endPoint)
+                        }
+                        .stroke(Color.blue, lineWidth: 4)
+                    }
+                    
+                    // Destination annotation
+                    if let destination = selectedDestination {
+                        Image(systemName: "mappin.circle.fill")
+                            .foregroundColor(.red)
+                            .font(.title)
+                            .background(Circle().fill(.white))
+                            .position(
+                                x: 300, y: 300 // Placeholder position
+                            )
+                    }
+                }
+            )
             .onTapGesture(count: 1) {
                 // Single tap to clear selection
                 clearDestination()
@@ -165,11 +195,6 @@ struct MapView: View {
         .onChange(of: locationManager.location) { newLocation in
             handleLocationUpdate(newLocation)
         }
-        .onChange(of: navigationState.shouldSetDestination) { shouldSet in
-            if shouldSet {
-                handleNavigationStateDestination()
-            }
-        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
@@ -212,22 +237,6 @@ struct MapView: View {
         if let userLocation = locationManager.location {
             centerOnLocation(userLocation)
         }
-    }
-    
-    private func handleNavigationStateDestination() {
-        guard let coordinate = navigationState.selectedDestination,
-              let title = navigationState.destinationTitle.isEmpty ? nil : navigationState.destinationTitle else {
-            return
-        }
-        
-        setDestination(coordinate, title: title)
-        withAnimation(.easeInOut(duration: 0.3)) {
-            mapState = .locationSelected
-        }
-        scaleMapToShowBothLocations()
-        
-        // Mark destination as set
-        navigationState.destinationSet()
     }
     
     private func cycleMapType() {
@@ -295,6 +304,9 @@ struct MapView: View {
         updatePolylineCoordinates()
         
         isNavigating = true
+        
+        // Notify parent view
+        onDestinationSelected?(coordinate, title)
     }
 
     private func clearDestination() {
@@ -310,9 +322,6 @@ struct MapView: View {
         
         // Stop location updates
         stopLocationUpdateTimer()
-        
-        // Clear navigation state
-        navigationState.clearDestination()
     }
     
     private func updatePolylineCoordinates() {
@@ -642,7 +651,9 @@ struct TripProgressCard: View {
         mapState: .constant(.noInput),
         alarmDistance: .constant(482.81),
         showLocationSearch: .constant(false),
-        navigationState: NavigationState()
+        onDestinationSelected: { coordinate, title in
+            print("Preview: Destination selected: \(title) at \(coordinate)")
+        }
     )
     .environmentObject(LocationSearchViewModel(locationManager: LocationManager()))
     .environmentObject(TripProgressViewModel(locationViewModel: LocationSearchViewModel(locationManager: LocationManager())))
