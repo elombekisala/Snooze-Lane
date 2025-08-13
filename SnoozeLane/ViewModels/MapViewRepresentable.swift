@@ -54,7 +54,16 @@ struct MapViewRepresentable: UIViewRepresentable {
         let longPressGesture = UILongPressGestureRecognizer(
             target: context.coordinator,
             action: #selector(context.coordinator.handleLongPress))
+        longPressGesture.minimumPressDuration = 0.5  // Set to 0.5 seconds as requested
         mapView.addGestureRecognizer(longPressGesture)
+
+        // Add double tap gesture to clear overlays and recenter
+        let doubleTapGesture = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(context.coordinator.handleDoubleTap))
+        doubleTapGesture.numberOfTapsRequired = 2
+        doubleTapGesture.numberOfTouchesRequired = 1
+        mapView.addGestureRecognizer(doubleTapGesture)
 
         return mapView
     }
@@ -107,6 +116,10 @@ extension MapViewRepresentable {
             NotificationCenter.default.addObserver(
                 self, selector: #selector(centerOnUserLocation), name: .centerOnUserLocation,
                 object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleUserLocationChanged(_:)),
+                name: .userLocationChanged,
+                object: nil)
         }
 
         deinit {
@@ -138,12 +151,26 @@ extension MapViewRepresentable {
             clearOverlays()
         }
 
+        @objc func handleUserLocationChanged(_ notification: Notification) {
+            // Refresh polyline when user location changes to maintain accuracy
+            if parent.locationViewModel.selectedSnoozeLaneLocation != nil {
+                DispatchQueue.main.async {
+                    self.updateUserToDestinationLine()
+                }
+            }
+        }
+
         @objc func centerOnUserLocation() {
             parent.mapView.setUserTrackingMode(.follow, animated: true)
             isFollowingUser.wrappedValue = true
+
+            // Refresh polyline to ensure it's accurate with current user location
+            if parent.locationViewModel.selectedSnoozeLaneLocation != nil {
+                updateUserToDestinationLine()
+            }
         }
 
-                    func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
+        func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
             // Update circle overlay
             if let existingOverlay = circleOverlay {
                 parent.mapView.removeOverlay(existingOverlay)
@@ -161,19 +188,45 @@ extension MapViewRepresentable {
                 parent.mapView.removeOverlay(existingLine)
             }
 
-            guard let userLocation = parent.locationManager.location?.coordinate,
-                let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
-            else { return }
+            // Get the exact coordinate that MapKit is using for the visual blue user location pin
+            let mapUserLocation = parent.mapView.userLocation.coordinate
+            guard let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
+            else {
+                print("⚠️ Destination not available - skipping polyline creation")
+                return
+            }
 
-            // Always use the most current user location for the polyline start
-            let polyline = MKPolyline(coordinates: [userLocation, destination], count: 2)
+            // Validate coordinates to ensure they are valid
+            guard
+                CLLocationCoordinate2DIsValid(mapUserLocation)
+                    && CLLocationCoordinate2DIsValid(destination)
+            else {
+                print("⚠️ Invalid coordinates detected - skipping polyline creation")
+                return
+            }
+
+            // Use the exact MapKit user location coordinate for perfect alignment with the blue pin
+            let startCoordinate = CLLocationCoordinate2D(
+                latitude: mapUserLocation.latitude,
+                longitude: mapUserLocation.longitude
+            )
+
+            let endCoordinate = CLLocationCoordinate2D(
+                latitude: destination.latitude,
+                longitude: destination.longitude
+            )
+
+            let polyline = MKPolyline(coordinates: [startCoordinate, endCoordinate], count: 2)
             parent.mapView.addOverlay(polyline)
             userToDestinationLine = polyline
-            
+
             // Debug: Log polyline coordinates for verification
             print("🔄 POLYLINE UPDATED:")
-            print("   📍 Start (User): \(userLocation.latitude), \(userLocation.longitude)")
-            print("   🎯 End (Destination): \(destination.latitude), \(destination.longitude)")
+            print("   📍 Start (User): \(startCoordinate.latitude), \(startCoordinate.longitude)")
+            print("   🎯 End (Destination): \(endCoordinate.latitude), \(endCoordinate.longitude)")
+            print(
+                "   📏 Distance: \(CLLocation(latitude: startCoordinate.latitude, longitude: startCoordinate.longitude).distance(from: CLLocation(latitude: endCoordinate.latitude, longitude: endCoordinate.longitude))) meters"
+            )
         }
 
         @objc func handleLongPress(gestureRecognizer: UILongPressGestureRecognizer) {
@@ -215,6 +268,35 @@ extension MapViewRepresentable {
                     self.fitMapToUserAndDestination()
                 }
             }
+        }
+
+        @objc func handleDoubleTap(gestureRecognizer: UITapGestureRecognizer) {
+            // Clear all overlays and recenter on user location
+            clearOverlays()
+            parent.mapView.removeAnnotations(parent.mapView.annotations)
+
+            // Reset state
+            parent.mapState = .noInput
+            parent.locationViewModel.selectedSnoozeLaneLocation = nil
+
+            // Recenter on user location
+            if let userLocation = parent.locationManager.location?.coordinate {
+                let region = MKCoordinateRegion(
+                    center: userLocation,
+                    latitudinalMeters: 1000,
+                    longitudinalMeters: 1000
+                )
+                parent.mapView.setRegion(region, animated: true)
+
+                // Set user tracking mode to follow
+                parent.mapView.setUserTrackingMode(.follow, animated: true)
+                isFollowingUser.wrappedValue = true
+                parent.userHasInteractedWithMap = false
+            }
+
+            // Provide haptic feedback
+            let feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
+            feedbackGenerator.impactOccurred()
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
@@ -266,11 +348,17 @@ extension MapViewRepresentable {
         func enableFollowMode() {
             parent.mapView.userTrackingMode = .follow
             parent.userHasInteractedWithMap = false
+
+            // Refresh polyline when entering follow mode to ensure accuracy
+            if parent.locationViewModel.selectedSnoozeLaneLocation != nil {
+                updateUserToDestinationLine()
+            }
         }
 
         func fitMapToUserAndDestination() {
-            guard let userLocation = parent.locationManager.location?.coordinate,
-                let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
+            // Use the exact MapKit user location coordinate for perfect alignment
+            let userLocation = parent.mapView.userLocation.coordinate
+            guard let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
             else { return }
 
             let tempPolyline = MKPolyline(coordinates: [userLocation, destination], count: 2)
@@ -325,9 +413,6 @@ extension MapViewRepresentable {
                 parent.showingDetails = true
             }
         }
-        
-
-        
 
     }
 }

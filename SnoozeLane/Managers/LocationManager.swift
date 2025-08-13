@@ -35,7 +35,7 @@ final class LocationManager: NSObject, ObservableObject {
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.showsBackgroundLocationIndicator = true
-        
+
         // Request authorization
         locationManager.requestWhenInUseAuthorization()
     }
@@ -58,10 +58,10 @@ final class LocationManager: NSObject, ObservableObject {
     // MARK: - Distance Calculations
     private func calculateThresholds(for location: CLLocation) {
         let speed = location.speed
-        if speed > 10 { // Moving fast
+        if speed > 10 {  // Moving fast
             minimumDistanceThreshold = 50
             minimumTimeThreshold = 30
-        } else { // Moving slow or stationary
+        } else {  // Moving slow or stationary
             minimumDistanceThreshold = 30
             minimumTimeThreshold = 60
         }
@@ -129,7 +129,7 @@ extension LocationManager: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
         locationAccuracy = manager.accuracyAuthorization
-        
+
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             if manager.accuracyAuthorization == .fullAccuracy {
@@ -151,7 +151,7 @@ extension LocationManager: CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        
+
         // Update thresholds based on movement
         calculateThresholds(for: location)
 
@@ -168,6 +168,9 @@ extension LocationManager: CLLocationManagerDelegate {
             if !userHasInteractedWithMap {
                 updateMapRegion(with: location)
             }
+
+            // Notify that location has changed significantly to refresh polyline
+            NotificationCenter.default.post(name: .userLocationChanged, object: location)
         }
     }
 
@@ -190,13 +193,13 @@ extension LocationManager: CLLocationManagerDelegate {
             print("❌ Other error: \(error.localizedDescription)")
         }
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         if region.identifier == "DestinationRegion" {
             NotificationCenter.default.post(name: .didEnterDestinationRegion, object: nil)
         }
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         if region.identifier == "DestinationRegion" {
             NotificationCenter.default.post(name: .didExitDestinationRegion, object: nil)
@@ -208,4 +211,5 @@ extension LocationManager: CLLocationManagerDelegate {
 extension Notification.Name {
     static let didEnterDestinationRegion = Notification.Name("didEnterDestinationRegion")
     static let didExitDestinationRegion = Notification.Name("didExitDestinationRegion")
+    static let userLocationChanged = Notification.Name("userLocationChanged")
 }
