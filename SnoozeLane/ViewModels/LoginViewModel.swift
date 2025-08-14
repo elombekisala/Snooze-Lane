@@ -387,15 +387,17 @@ class LoginViewModel: ObservableObject {
 
                 // For simulator, we'll skip Firestore creation and just log in
                 // This avoids permission issues while testing
-                print("🔧 Simulator: Skipping Firestore document creation to avoid permission issues")
-                
+                print(
+                    "🔧 Simulator: Skipping Firestore document creation to avoid permission issues")
+
                 // Successfully authenticated (simulated)
                 withAnimation {
                     self.status = true
                     self.loading = false
                 }
-                
-                print("✅ Simulator: User logged in successfully with phone: \(self.fullPhoneNumber)")
+
+                print(
+                    "✅ Simulator: User logged in successfully with phone: \(self.fullPhoneNumber)")
                 print("🔧 Note: Firestore document will be created when needed during app usage")
             } else {
                 self.errorMsg = "Invalid verification code. Use: \(testVerificationCode)"
