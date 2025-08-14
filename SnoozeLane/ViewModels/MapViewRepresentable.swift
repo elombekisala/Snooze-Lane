@@ -377,6 +377,9 @@ extension MapViewRepresentable {
             let location = gestureRecognizer.location(in: parent.mapView)
             let coordinate = parent.mapView.convert(location, toCoordinateFrom: parent.mapView)
 
+            print("🗺️ LONG PRESS DETECTED:")
+            print("   📍 Coordinate: \(coordinate.latitude), \(coordinate.longitude)")
+
             // Provide haptic feedback
             let feedbackGenerator = UIImpactFeedbackGenerator(style: .heavy)
             feedbackGenerator.impactOccurred(intensity: 100)
@@ -395,6 +398,10 @@ extension MapViewRepresentable {
             parent.locationViewModel.reverseGeocodeLocation(coordinate) { [weak self] address in
                 guard let self = self else { return }
                 let title = address ?? "Selected Location"
+                
+                print("🗺️ LONG PRESS: Reverse geocoded address: \(title)")
+                
+                // Set the selected location in the view model (same as search selection)
                 self.parent.locationViewModel.selectedSnoozeLaneLocation = SnoozeLaneLocation(
                     title: title,
                     subtitle: nil,
@@ -402,10 +409,50 @@ extension MapViewRepresentable {
                     placemark: MKPlacemark(coordinate: coordinate)
                 )
 
-                // Update overlays and fit map
+                // Post the EXACT SAME notifications as search selection
                 DispatchQueue.main.async {
-                    self.updateOverlays(for: coordinate, radius: self.parent.alarmDistance)
-                    self.fitMapToUserAndDestination()
+                    print("🚀 LONG PRESS: POSTING NOTIFICATIONS TO UPDATE MAP:")
+                    
+                    // Post notification to add destination annotation to the map
+                    print("   📍 Posting addDestinationAnnotation notification...")
+                    NotificationCenter.default.post(
+                        name: .addDestinationAnnotation,
+                        object: nil,
+                        userInfo: [
+                            "coordinate": coordinate, "title": title, "subtitle": nil
+                        ]
+                    )
+                    print("   ✅ addDestinationAnnotation notification posted")
+
+                    // Post notification to update overlays (circle and polyline)
+                    print("   📍 Posting updateCircle notification...")
+                    NotificationCenter.default.post(
+                        name: .updateCircle,
+                        object: nil,
+                        userInfo: [
+                            "coordinate": coordinate,
+                            "radius": self.parent.alarmDistance,
+                        ]
+                    )
+                    print("   ✅ updateCircle notification posted")
+
+                    // Post notification to fit map to show both user and destination
+                    print("   📍 Posting fitMapToUserAndDestination notification...")
+                    NotificationCenter.default.post(
+                        name: .fitMapToUserAndDestination,
+                        object: nil
+                    )
+                    print("   ✅ fitMapToUserAndDestination notification posted")
+
+                    // Post notification to update map state to locationSelected
+                    print("   📍 Posting locationSelected notification...")
+                    NotificationCenter.default.post(
+                        name: .locationSelected,
+                        object: nil
+                    )
+                    print("   ✅ locationSelected notification posted")
+
+                    print("🎯 LONG PRESS: ALL NOTIFICATIONS POSTED - MAP SHOULD UPDATE NOW")
                 }
             }
         }

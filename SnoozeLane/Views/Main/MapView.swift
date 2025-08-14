@@ -890,11 +890,13 @@ struct MapView: View {
 
         // Check if we should trigger the Firebase function via TripProgressViewModel
         if distance <= alarmDistance {
-            print("🎯 MapView: Within alarm distance, triggering TripProgressViewModel threshold check")
-            
+            print(
+                "🎯 MapView: Within alarm distance, triggering TripProgressViewModel threshold check"
+            )
+
             // Trigger the TripProgressViewModel's threshold detection
             tripProgressViewModel.checkThresholdReached(distance: distance)
-            
+
             // Also call the local destination reached logic
             destinationReached()
         }
