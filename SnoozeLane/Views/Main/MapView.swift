@@ -1,4 +1,4 @@
- import AudioToolbox
+import AudioToolbox
 import MapKit
 import SwiftUI
 import UIKit
@@ -643,6 +643,11 @@ struct MapView: View {
 
         // Post notification to clear map overlays
         NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+
+        // Update map state to noInput
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .noInput
+        }
 
         print("✅ Trip/destination cancelled successfully")
     }
