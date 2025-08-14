@@ -316,35 +316,47 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
     
     // MARK: - Threshold Detection
     func checkThresholdReached(distance: Double) {
-        guard !hasReachedDestination, let destination = destination else { return }
+        guard !hasReachedDestination, let destination = destination else { 
+            print("⚠️ Threshold check guard failed - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)")
+            return 
+        }
         
         print("🎯 Threshold check - Distance: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
         
         if distance <= alarmDistanceThreshold {
             print("🎯 Distance threshold reached! Current: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
-            hasReachedDestination = true
             
-            // Trigger notification and call
-            triggerNotification()
-            
-            if !callMade {
+            // Only trigger if we haven't already reached destination
+            if !hasReachedDestination {
+                hasReachedDestination = true
                 print("📞 Triggering call function...")
-                triggerCall()
+                
+                // Trigger notification and call
+                triggerNotification()
+                
+                if !callMade {
+                    print("📞 Call not yet made, triggering call function...")
+                    triggerCall()
+                } else {
+                    print("📞 Call already made, skipping...")
+                }
+                
+                // Stop location updates and clear map
+                locationManager.stopUpdatingLocation()
+                isStarted = false
+                
+                // Clear map overlays
+                NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+                
+                // Update UI state to show completion
+                DispatchQueue.main.async {
+                    self.hasReachedDestination = true
+                }
             } else {
-                print("📞 Call already made, skipping...")
+                print("📞 Destination already reached, call already triggered")
             }
-            
-            // Stop location updates and clear map
-            locationManager.stopUpdatingLocation()
-            isStarted = false
-            
-            // Clear map overlays
-            NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
-            
-            // Update UI state to show completion
-            DispatchQueue.main.async {
-                self.tripCompleted = true
-            }
+        } else {
+            print("🎯 Distance \(distance)m still above threshold \(alarmDistanceThreshold)m")
         }
     }
 }
