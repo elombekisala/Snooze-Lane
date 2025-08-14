@@ -340,7 +340,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
     }
 
-        func updateAlarmDistanceThreshold(_ newRadius: Double) {
+    func updateAlarmDistanceThreshold(_ newRadius: Double) {
         print("🔔 Manually updating alarm distance threshold to: \(newRadius)m")
         alarmDistanceThreshold = newRadius
         print("✅ Alarm distance threshold updated")
@@ -357,12 +357,13 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
     func checkThresholdReached(distance: Double) {
         print("🔍 checkThresholdReached called with distance: \(distance)m")
         print(
-            "🔍 Current state - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)"
+            "🔍 Current state - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil), callMade: \(callMade)"
         )
 
-        guard !hasReachedDestination, let destination = destination else {
+        // Only check destination exists - allow multiple threshold checks
+        guard let destination = destination else {
             print(
-                "⚠️ Threshold check guard failed - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)"
+                "⚠️ Threshold check guard failed - destination is nil"
             )
             return
         }
@@ -374,8 +375,8 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         // Use the user's configured alarm distance as the threshold, not the hardcoded value
         // This ensures the Firebase function triggers at the user's chosen distance
         let userAlarmDistance = UserDefaults.standard.double(forKey: "defaultAlarmRadiusMeters")
-        let threshold = userAlarmDistance > 0 ? userAlarmDistance : 500.0 // Fallback to 500m if not set
-        
+        let threshold = userAlarmDistance > 0 ? userAlarmDistance : 500.0  // Fallback to 500m if not set
+
         print("🎯 Threshold check - Distance: \(distance)m, User's Alarm Distance: \(threshold)m")
 
         if distance <= threshold {
@@ -383,35 +384,26 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                 "🎯 Distance threshold reached! Current: \(distance)m, Threshold: \(threshold)m"
             )
 
-            // Only trigger if we haven't already reached destination
-            if !hasReachedDestination {
+            // Check if we should trigger the Firebase function
+            if !callMade {
+                print("📞 Call not yet made, triggering call function...")
+                print("📞 FIREBASE FUNCTION WILL BE CALLED NOW!")
+                
+                // Mark that we've reached the destination
                 hasReachedDestination = true
-                print("📞 Triggering call function...")
-
+                
                 // Trigger notification and call
                 triggerNotification()
-
-                if !callMade {
-                    print("📞 Call not yet made, triggering call function...")
-                    print("📞 FIREBASE FUNCTION WILL BE CALLED NOW!")
-                    triggerCall()
-                } else {
-                    print("📞 Call already made, skipping...")
-                }
-
-                // Stop location updates and clear map
-                locationManager.stopUpdatingLocation()
-                isStarted = false
-
-                // Clear map overlays
-                NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
-
-                // Update UI state to show completion
-                DispatchQueue.main.async {
-                    self.hasReachedDestination = true
-                }
+                triggerCall()
+                
+                // Don't stop the trip yet - let it continue monitoring
+                // The user might move in and out of the threshold
+                print("📞 Firebase function triggered, continuing to monitor...")
+                
+            } else if callInProgress {
+                print("📞 Call already in progress, waiting...")
             } else {
-                print("📞 Destination already reached, call already triggered")
+                print("📞 Call already made successfully, threshold monitoring continues...")
             }
         } else {
             print("🎯 Distance \(distance)m still above threshold \(threshold)m")
