@@ -771,6 +771,24 @@ struct MapView: View {
     }
 
     private func startTrip() {
+        print("🚀 MapView.startTrip() called")
+        
+        // Set destination in TripProgressViewModel if we have a selected destination
+        if let selectedDestination = selectedDestination {
+            let destinationLocation = CLLocation(
+                latitude: selectedDestination.latitude, 
+                longitude: selectedDestination.longitude
+            )
+            progressViewModel.setDestination(destinationLocation)
+            print("🎯 Destination set in MapView.startTrip(): \(selectedDestination.latitude), \(selectedDestination.longitude)")
+        } else {
+            print("⚠️ No selected destination found in MapView.startTrip()")
+        }
+        
+        // Actually start the trip in TripProgressViewModel
+        progressViewModel.startTrip()
+        print("✅ Trip started in TripProgressViewModel")
+        
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .tripInProgress
         }
