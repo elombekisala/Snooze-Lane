@@ -1,17 +1,15 @@
 import SwiftUI
 import MapKit
-import CoreLocation
 
-struct QuickDestinationEditView: View {
+struct SimpleQuickDestinationEditView: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var quickDestinations: [QuickDestination]
+    @Binding var quickDestinations: [QuickDestinationItem]
     
     @State private var title: String = ""
     @State private var subtitle: String = ""
     @State private var address: String = ""
-    @State private var selectedCategory: QuickDestinationCategory = .other
     @State private var selectedIcon: String = "mappin.circle.fill"
-    @State private var selectedColorHex: String = "#007AFF"
+    @State private var selectedColor: Color = .blue
     
     @State private var isSearching = false
     @State private var searchResults: [MKMapItem] = []
@@ -19,9 +17,13 @@ struct QuickDestinationEditView: View {
     @State private var showingLocationPicker = false
     
     // For editing existing destination
-    let editingDestination: QuickDestination?
+    let editingDestination: QuickDestinationItem?
     
-    init(quickDestinations: Binding<[QuickDestination]>, editingDestination: QuickDestination? = nil) {
+    // Available icons and colors
+    private let availableIcons = ["house.fill", "briefcase.fill", "dumbbell.fill", "cart.fill", "car.fill", "airplane", "mappin.circle.fill", "star.fill"]
+    private let availableColors: [Color] = [.blue, .green, .purple, .orange, .red, .pink, .yellow, .gray]
+    
+    init(quickDestinations: Binding<[QuickDestinationItem]>, editingDestination: QuickDestinationItem? = nil) {
         self._quickDestinations = quickDestinations
         self.editingDestination = editingDestination
         
@@ -30,9 +32,8 @@ struct QuickDestinationEditView: View {
             _title = State(initialValue: destination.title)
             _subtitle = State(initialValue: destination.subtitle)
             _address = State(initialValue: destination.subtitle) // Use subtitle as address
-            _selectedCategory = State(initialValue: destination.category)
             _selectedIcon = State(initialValue: destination.icon)
-            _selectedColorHex = State(initialValue: destination.colorHex)
+            _selectedColor = State(initialValue: destination.color)
         }
     }
     
@@ -88,62 +89,47 @@ struct QuickDestinationEditView: View {
                         }
                     }
                     
-                    // Category
+                    // Icon Selection
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Category")
+                        Text("Icon")
                             .font(.headline)
                             .foregroundColor(.white)
                         
-                        Picker("Category", selection: $selectedCategory) {
-                            ForEach(QuickDestinationCategory.allCases, id: \.self) { category in
-                                Text(category.displayName).tag(category)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                            ForEach(availableIcons, id: \.self) { icon in
+                                Button(action: {
+                                    selectedIcon = icon
+                                }) {
+                                    Image(systemName: icon)
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                        .frame(width: 44, height: 44)
+                                        .background(selectedIcon == icon ? selectedColor : Color.gray.opacity(0.3))
+                                        .cornerRadius(8)
+                                }
                             }
                         }
-                        .pickerStyle(MenuPickerStyle())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(8)
                     }
                     
-                    // Icon and Color
-                    HStack(spacing: 20) {
-                        // Icon Picker
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Icon")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            Button(action: {
-                                // TODO: Show icon picker
-                                print("Icon picker tapped")
-                            }) {
-                                Image(systemName: selectedIcon)
-                                    .font(.title2)
-                                    .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color(hex: selectedColorHex) ?? .blue)
-                                    .cornerRadius(8)
-                            }
-                        }
+                    // Color Selection
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Color")
+                            .font(.headline)
+                            .foregroundColor(.white)
                         
-                        // Color Picker
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Color")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            Button(action: {
-                                // TODO: Show color picker
-                                print("Color picker tapped")
-                            }) {
-                                Circle()
-                                    .fill(Color(hex: selectedColorHex) ?? .blue)
-                                    .frame(width: 44, height: 44)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white, lineWidth: 2)
-                                    )
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                            ForEach(availableColors, id: \.self) { color in
+                                Button(action: {
+                                    selectedColor = color
+                                }) {
+                                    Circle()
+                                        .fill(color)
+                                        .frame(width: 44, height: 44)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(selectedColor == color ? Color.white : Color.clear, lineWidth: 3)
+                                        )
+                                }
                             }
                         }
                     }
@@ -270,22 +256,21 @@ struct QuickDestinationEditView: View {
         guard let selectedMapItem = selectedMapItem else { return }
         
         let coordinate = selectedMapItem.coordinate
-        let newDestination = QuickDestination(
-            id: editingDestination?.id ?? UUID().uuidString,
+        let newDestination = QuickDestinationItem(
             title: title,
             subtitle: subtitle.isEmpty ? address : subtitle,
-            latitude: coordinate.latitude,
-            longitude: coordinate.longitude,
             icon: selectedIcon,
-            colorHex: selectedColorHex,
-            category: selectedCategory
+            color: selectedColor,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
         )
         
         print("💾 Saving quick destination:")
         print("   Title: \(newDestination.title)")
         print("   Address: \(newDestination.subtitle)")
         print("   Coordinates: (\(coordinate.latitude), \(coordinate.longitude))")
-        print("   Category: \(newDestination.category.displayName)")
+        print("   Icon: \(newDestination.icon)")
+        print("   Color: \(newDestination.color)")
         
         if editingDestination != nil {
             // Update existing destination
@@ -361,8 +346,8 @@ struct LocationPickerView: View {
 }
 
 #Preview {
-    QuickDestinationEditView(
-        quickDestinations: .constant(QuickDestination.defaultDestinations)
+    SimpleQuickDestinationEditView(
+        quickDestinations: .constant(QuickDestinationItem.defaultDestinations)
     )
     .background(Color.black)
 }
