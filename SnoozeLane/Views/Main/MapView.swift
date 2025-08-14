@@ -64,6 +64,7 @@ struct MapView: View {
     @State private var longPressLocation: CGPoint = .zero
     @State private var isLongPressing: Bool = false
     @State private var longPressTimer: Timer?
+    @State private var longPressCancelledByMovement: Bool = false
     @State private var useMetricSystem: Bool = UserDefaults.standard.bool(forKey: "useMetricSystem")
     @State private var transportationMode: TransportationMode = .car
 
@@ -137,10 +138,14 @@ struct MapView: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        // If we already canceled due to movement during this drag, do nothing
+                        if longPressCancelledByMovement { return }
+
                         // Start long press timer when drag begins
                         if !isLongPressing {
                             isLongPressing = true
                             longPressLocation = value.startLocation
+                            longPressCancelledByMovement = false
 
                             // Start timer for long press detection
                             longPressTimer = Timer.scheduledTimer(
@@ -162,6 +167,17 @@ struct MapView: View {
                                 // Reset state
                                 isLongPressing = false
                             }
+                        } else {
+                            // If user moves finger beyond a small threshold, treat as pan and cancel long press
+                            let dx = value.location.x - longPressLocation.x
+                            let dy = value.location.y - longPressLocation.y
+                            let movement = sqrt(dx*dx + dy*dy)
+                            if movement > 12 {
+                                longPressTimer?.invalidate()
+                                longPressTimer = nil
+                                isLongPressing = false
+                                longPressCancelledByMovement = true
+                            }
                         }
                     }
                     .onEnded { _ in
@@ -169,6 +185,7 @@ struct MapView: View {
                         longPressTimer?.invalidate()
                         longPressTimer = nil
                         isLongPressing = false
+                        longPressCancelledByMovement = false
                     }
             )
             .onTapGesture(count: 1, coordinateSpace: .local) { location in
