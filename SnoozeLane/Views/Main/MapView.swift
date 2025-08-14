@@ -46,6 +46,7 @@ struct MapView: View {
     @State private var showMapControls = true
     @State private var showSettings = false
     @State private var mapType: MKMapType = .standard
+    @State private var useDarkMapStyle: Bool = UserDefaults.standard.object(forKey: "useDarkMapStyle") as? Bool ?? true
 
     // Navigation state
     @State private var selectedDestination: CLLocationCoordinate2D?
@@ -64,24 +65,31 @@ struct MapView: View {
     @State private var longPressLocation: CGPoint = .zero
     @State private var isLongPressing: Bool = false
     @State private var longPressTimer: Timer?
-    @State private var useMetricSystem: Bool = UserDefaults.standard.bool(forKey: "useMetricSystem")
+    @State private var longPressCancelledByMovement: Bool = false
+
+    // Bridge state for MapViewRepresentable (MKMapView-backed)
+    @State private var selectedMapItem: MKMapItem? = nil
+    @State private var showingDetails: Bool = false
+    @State private var userHasInteractedWithMapBridge: Bool = false
+    @State private var isFollowingUser: Bool = true
+    @State private var useMetricSystem: Bool = UserDefaults.standard.bool(forKey: "useMetricUnits")
     @State private var transportationMode: TransportationMode = .car
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Map with polyline and annotations
-            Map(
-                coordinateRegion: $region,
-                showsUserLocation: true,
-                userTrackingMode: .constant(userTrackingMode)
+            // MKMapView-backed implementation for precise overlays (polyline, circle, pin)
+            MapViewRepresentable(
+                selectedMapItem: $selectedMapItem,
+                showingDetails: $showingDetails,
+                mapState: $mapState,
+                userHasInteractedWithMap: $userHasInteractedWithMapBridge,
+                alarmDistance: $alarmDistance,
+                mapType: $mapType,
+                isFollowingUser: $isFollowingUser,
+                useDarkMapStyle: $useDarkMapStyle
             )
-            .mapStyle(mapType == .standard ? .standard : mapType == .satellite ? .imagery : .hybrid)
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.3), value: mapState)
-            .overlay(
-                // Map overlays
-                mapOverlays
-            )
             .overlay(
                 // Estimated Rest Time Display - Top Center (during trip and alarm stages)
                 Group {
@@ -134,75 +142,7 @@ struct MapView: View {
                 }
             )
 
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        // Start long press timer when drag begins
-                        if !isLongPressing {
-                            isLongPressing = true
-                            longPressLocation = value.startLocation
-
-                            // Start timer for long press detection
-                            longPressTimer = Timer.scheduledTimer(
-                                withTimeInterval: 0.5, repeats: false
-                            ) { _ in
-                                // Long press detected - place pin at actual location
-                                let coordinate = screenPointToCoordinate(longPressLocation)
-                                let title = "Selected Location"
-                                setDestination(coordinate, title: title)
-
-                                // Update map state
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    mapState = .locationSelected
-                                }
-
-                                // Provide haptic feedback
-                                provideHapticFeedback()
-
-                                // Reset state
-                                isLongPressing = false
-                            }
-                        }
-                    }
-                    .onEnded { _ in
-                        // Cancel long press if drag ends before timer
-                        longPressTimer?.invalidate()
-                        longPressTimer = nil
-                        isLongPressing = false
-                    }
-            )
-            .onTapGesture(count: 1, coordinateSpace: .local) { location in
-                // Single tap to place a pin at the actual tap location
-                if selectedDestination != nil {
-                    clearDestination()
-                } else {
-                    // Convert tap location to map coordinates
-                    let coordinate = screenPointToCoordinate(location)
-                    let title = "Custom Location"
-                    setDestination(coordinate, title: title)
-
-                    // Update map state
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        mapState = .locationSelected
-                    }
-
-                    // Provide haptic feedback
-                    provideHapticFeedback()
-                }
-            }
-            .simultaneousGesture(
-                DragGesture()
-                    .onChanged { _ in
-                        // User is dragging the map
-                        if userTrackingMode == .follow {
-                            userTrackingMode = .none
-                            // Provide subtle haptic feedback when tracking stops
-                            AudioServicesPlaySystemSound(1103)  // Light tap sound
-                        }
-                        // Mark that user has interacted with map
-                        locationManager.userInteractedWithMap()
-                    }
-            )
+            // Gestures are handled inside MapViewRepresentable (long-press, double-tap, follow mode)
             .onChange(of: userTrackingMode) { newMode in
                 // Handle user tracking mode changes
                 if newMode == .none {
@@ -218,31 +158,24 @@ struct MapView: View {
             }
             .onChange(of: useMetricSystem) { newValue in
                 // Save metric preference to UserDefaults
-                UserDefaults.standard.set(newValue, forKey: "useMetricSystem")
+                UserDefaults.standard.set(newValue, forKey: "useMetricUnits")
+            }
+            .onChange(of: useDarkMapStyle) { newValue in
+                // Save dark theme preference to UserDefaults
+                UserDefaults.standard.set(newValue, forKey: "useDarkMapStyle")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .unitsPreferenceChanged)) {
+                notif in
+                if let val = notif.userInfo?["useMetricUnits"] as? Bool {
+                    useMetricSystem = val
+                } else {
+                    useMetricSystem = UserDefaults.standard.bool(forKey: "useMetricUnits")
+                }
             }
 
             // Top Controls - Pinned to top right (State-based visibility)
             if mapState.shouldShowTopControls {
                 VStack(spacing: 12) {
-                    // Cancel Button - Only show when location is selected
-                    if mapState == .locationSelected || mapState == .polylineAdded {
-                        Button(action: {
-                            cancelSelectedLocation()
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.red)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    Circle()
-                                        .fill(Color.white)
-                                        .shadow(
-                                            color: .red.opacity(0.3), radius: 4, x: 0, y: 2)
-                                )
-                        }
-                        .transition(.scale.combined(with: .opacity))
-                    }
-                    
                     // Map Type Button
                     Button(action: {
                         cycleMapType()
@@ -318,10 +251,10 @@ struct MapView: View {
                     if userTrackingMode != .follow {
                         Text("Tap to follow")
                             .font(.caption2)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.white)
+                            .background(Color.black.opacity(0.8))
                             .cornerRadius(8)
                             .shadow(radius: 2)
                             .transition(.opacity.combined(with: .scale))
@@ -350,6 +283,26 @@ struct MapView: View {
                     }
                     .transition(.scale.combined(with: .opacity))
 
+                    // Dark Theme Toggle Button
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            useDarkMapStyle.toggle()
+                        }
+                    }) {
+                        Image(systemName: useDarkMapStyle ? "moon.fill" : "sun.max.fill")
+                            .font(.title2)
+                            .foregroundColor(useDarkMapStyle ? .purple : .orange)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(Color.white)
+                                    .shadow(
+                                        color: (useDarkMapStyle ? Color.purple : Color.orange).opacity(0.3), radius: 4, x: 0,
+                                        y: 2)
+                            )
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                    
                     // Settings Button
                     Button(action: {
                         showSettings = true
@@ -367,6 +320,38 @@ struct MapView: View {
                             )
                     }
                     .transition(.scale.combined(with: .opacity))
+
+                    // Cancel Trip/Destination Button - Only show when destination is selected
+                    if mapState != .noInput {
+                        Button(action: {
+                            cancelTripOrDestination()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.red)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(Color.white)
+                                        .shadow(
+                                            color: Color.red.opacity(0.3), radius: 4, x: 0,
+                                            y: 2)
+                                )
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                        .overlay(
+                            // Tooltip
+                            Text("Cancel")
+                                .font(.caption2)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.black.opacity(0.8))
+                                .cornerRadius(8)
+                                .shadow(radius: 2)
+                                .transition(.opacity.combined(with: .scale))
+                        )
+                    }
                 }
                 .padding(.top, 60)  // Account for status bar
                 .padding(.trailing, 16)
@@ -415,6 +400,24 @@ struct MapView: View {
         .onAppear {
             setupLocationUpdates()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .mapTypeChanged)) { notif in
+            if let raw = notif.userInfo?["mapType"] as? UInt, let t = MKMapType(rawValue: raw) {
+                mapType = t
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .trafficToggled)) { notif in
+            if let enabled = notif.userInfo?["enabled"] as? Bool {
+                NotificationCenter.default.post(
+                    name: .updateTrafficVisibility, object: nil, userInfo: ["enabled": enabled])
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .requestLocationPermission)) { _ in
+            locationManager.requestAuthorization()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .resetMapOverlays)) { _ in
+            NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+            mapState = .noInput
+        }
         .onChange(of: mapState) {
             handleMapStateChange()
         }
@@ -444,56 +447,7 @@ struct MapView: View {
     // MARK: - Computed Views
 
     @ViewBuilder
-    private var mapOverlays: some View {
-        ZStack {
-            // Polyline overlay
-            if polylineCoordinates.count >= 2,
-                let startPoint = coordinateToScreenPoint(polylineCoordinates[0]),
-                let endPoint = coordinateToScreenPoint(polylineCoordinates[1])
-            {
-                Path { path in
-                    path.move(to: startPoint)
-                    path.addLine(to: endPoint)
-                }
-                .stroke(Color.blue, lineWidth: 4)
-            }
-
-            // Destination annotation overlay
-            if let destination = selectedDestination,
-                let screenPoint = coordinateToScreenPoint(destination)
-            {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundColor(.red)
-                    .font(.title)
-                    .background(Circle().fill(.white))
-                    .position(screenPoint)
-            }
-
-            // Alarm radius circle overlay
-            if let destination = selectedDestination, alarmDistance > 0,
-                let screenPoint = coordinateToScreenPoint(destination)
-            {
-                let circleSize = calculateCircleSize(for: alarmDistance)
-
-                Circle()
-                    .stroke(Color.orange, lineWidth: 2)
-                    .background(Circle().fill(Color.orange.opacity(0.1)))
-                    .frame(width: circleSize, height: circleSize)
-                    .position(screenPoint)
-                    .animation(.easeInOut(duration: 0.3), value: alarmDistance)
-
-                Text("\(Int(alarmDistance))m")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white)
-                    .cornerRadius(8)
-                    .shadow(radius: 2)
-                    .position(x: screenPoint.x, y: screenPoint.y - circleSize / 2 - 20)
-            }
-        }
-    }
+    private var mapOverlays: some View { EmptyView() }
 
     // MARK: - Computed Properties
 
@@ -684,16 +638,23 @@ struct MapView: View {
         // Stop location updates
         stopLocationUpdateTimer()
     }
-    
-    private func cancelSelectedLocation() {
-        // Clear the selected destination and reset map state
-        clearDestination()
-        
+
+    private func cancelTripOrDestination() {
+        print("🚫 Cancelling trip/destination selection")
+
         // Provide haptic feedback
         provideHapticFeedback()
-        
-        // Print confirmation
-        print("✅ Selected location cancelled successfully")
+
+        // Clear all destination-related data
+        clearDestination()
+
+        // Reset any trip progress
+        tripProgressViewModel.resetTrip()
+
+        // Post notification to clear map overlays
+        NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+
+        print("✅ Trip/destination cancelled successfully")
     }
 
     private func updatePolylineCoordinates() {

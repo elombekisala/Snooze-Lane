@@ -20,4 +20,10 @@ extension Notification.Name {
     static let distanceUpdated = Notification.Name("distanceUpdated")
     static let fitMapToUserAndDestination = Notification.Name("fitMapToUserAndDestination")
     static let addDestinationAnnotation = Notification.Name("addDestinationAnnotation")
+    static let unitsPreferenceChanged = Notification.Name("unitsPreferenceChanged")
+    static let mapTypeChanged = Notification.Name("mapTypeChanged")
+    static let trafficToggled = Notification.Name("trafficToggled")
+    static let requestLocationPermission = Notification.Name("requestLocationPermission")
+    static let resetMapOverlays = Notification.Name("resetMapOverlays")
+    static let updateTrafficVisibility = Notification.Name("updateTrafficVisibility")
 }

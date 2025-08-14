@@ -1,5 +1,6 @@
 import AudioToolbox
 import Combine
+import Foundation
 import MapKit
 import SwiftUI
 
@@ -7,12 +8,15 @@ struct Home: View {
     @State private var mapState: MapViewState = .noInput
     @State private var alarmDistance: Double = 482.81
     @State private var showSearchModal = false
+    @State private var showAddDestinationModal = false
 
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
     @EnvironmentObject var tripProgressViewModel: TripProgressViewModel
     @EnvironmentObject var loginViewModel: LoginViewModel
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var windowSharedModel: WindowSharedModel
+
+    // @State private var quickDestinationsManager = QuickDestinationsManager.shared
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -61,6 +65,7 @@ struct Home: View {
                 .animation(.easeInOut(duration: 0.3), value: mapState)
             }
         }
+
         .sheet(isPresented: $showSearchModal) {
             // Enhanced Search Modal View
             VStack(spacing: 16) {
@@ -112,7 +117,11 @@ struct Home: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Color.gray.opacity(0.2))
+                .background(Color.black.opacity(0.6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
                 .cornerRadius(12)
                 .padding(.horizontal)
 
@@ -120,10 +129,22 @@ struct Home: View {
                 if locationViewModel.queryFragment.isEmpty {
                     // Quick Destination Options
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Quick Destinations")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal)
+                        HStack {
+                            Text("Quick Destinations")
+                                .font(.headline)
+                                .foregroundColor(.white)
+
+                            Spacer()
+
+                            Button(action: {
+                                showAddDestinationModal = true
+                            }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.title3)
+                            }
+                        }
+                        .padding(.horizontal)
 
                         // Home
                         QuickDestinationButton(
@@ -217,6 +238,11 @@ struct Home: View {
             .background(Color.black)
             .presentationDetents([.medium, .large])
         }
+
+        // Add/Edit Quick Destination Modal
+        // .sheet(isPresented: $showAddDestinationModal) {
+        //     QuickDestinationEditView(quickDestinationsManager: quickDestinationsManager)
+        // }
     }
 
     // MARK: - Helper Functions
@@ -282,7 +308,11 @@ struct QuickDestinationButton: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.gray.opacity(0.2))
+            .background(Color.black.opacity(0.6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())

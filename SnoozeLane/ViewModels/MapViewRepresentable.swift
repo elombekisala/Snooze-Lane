@@ -17,6 +17,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     @Binding var alarmDistance: Double
     @Binding var mapType: MKMapType
     @Binding var isFollowingUser: Bool
+    @Binding var useDarkMapStyle: Bool
 
     // EnvironmentObjects to access shared data
     @EnvironmentObject var locationManager: LocationManager
@@ -31,8 +32,17 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         // Configure the map with new configuration
         let config = MKStandardMapConfiguration()
-        config.emphasisStyle = .default
+        config.emphasisStyle = useDarkMapStyle ? .muted : .default
         config.showsTraffic = false
+        
+        // Apply dark theme styling
+        if useDarkMapStyle {
+            config.pointOfInterestFilter = MKPointOfInterestFilter(excluding: [.airport, .bank, .hospital, .school])
+            mapView.tintColor = .orange
+            mapView.overrideUserInterfaceStyle = .dark
+        } else {
+            mapView.overrideUserInterfaceStyle = .light
+        }
 
         // Set the configuration
         mapView.preferredConfiguration = config
@@ -73,6 +83,16 @@ struct MapViewRepresentable: UIViewRepresentable {
         // Update map type if changed
         if uiView.mapType != mapType {
             uiView.mapType = mapType
+        }
+        
+        // Update dark style if changed
+        if uiView.overrideUserInterfaceStyle != (useDarkMapStyle ? .dark : .light) {
+            uiView.overrideUserInterfaceStyle = useDarkMapStyle ? .dark : .light
+            // Reconfigure map with new style
+            let config = MKStandardMapConfiguration()
+            config.emphasisStyle = useDarkMapStyle ? .muted : .default
+            config.showsTraffic = false
+            uiView.preferredConfiguration = config
         }
 
         // Update UI elements based on map state
@@ -136,11 +156,24 @@ extension MapViewRepresentable {
                 self, selector: #selector(handleLocationSelected(_:)),
                 name: .locationSelected,
                 object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleUpdateTrafficVisibility(_:)),
+                name: .updateTrafficVisibility,
+                object: nil)
         }
 
         deinit {
             NotificationCenter.default.removeObserver(self)
             cleanup()
+        }
+
+        @objc func handleUpdateTrafficVisibility(_ notification: Notification) {
+            if let enabled = notification.userInfo?["enabled"] as? Bool {
+                if let std = parent.mapView.preferredConfiguration as? MKStandardMapConfiguration {
+                    std.showsTraffic = enabled
+                    parent.mapView.preferredConfiguration = std
+                }
+            }
         }
 
         private func cleanup() {

@@ -91,7 +91,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             self.updateDistance(location: location)
         }
         .store(in: &cancellables)
-        
+
         // Listen for distance updates from LocationSearchViewModel
         NotificationCenter.default.addObserver(
             self,
@@ -100,7 +100,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             object: nil
         )
     }
-    
+
     @objc func distanceUpdated(_ notification: Notification) {
         guard let newDistance = notification.object as? Double else { return }
         distance = newDistance
@@ -296,6 +296,13 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         initialLocation = nil
         tripCompleted = false
         print("RESET TRIP PROGRESS FUNCTION CALLED.")
+    }
+
+    func resetTrip() {
+        print("🔄 Resetting trip state")
+        resetTripProgress()
+        isStarted = false
+        print("✅ Trip reset successfully")
     }
 
     func startNewTrip() {

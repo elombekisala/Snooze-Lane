@@ -2,6 +2,7 @@ import Contacts
 import ContactsUI
 import Firebase
 import LinkPresentation
+import MapKit
 import SwiftUI
 import UIKit
 import os.log
@@ -20,7 +21,7 @@ class SettingsViewModel: ObservableObject {
     @Published var units: String = "Miles"
     @Published var defaultAlarmRadius: Int = 500
     @Published var callTiming: String = "Immediate"
-    
+
     private var observer: NSObjectProtocol?
     private let notificationCenter = NotificationCenter.default
     private let db = Firestore.firestore()
@@ -137,6 +138,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @AppStorage("hasCompletedWalkthrough") var hasCompletedWalkthrough: Bool = false
     @AppStorage("currentPage") var currentPage: Int = 1
+    @AppStorage("useMetricUnits") var useMetricUnits: Bool = false
     @State private var isLoggingOut = false
 
     @State private var showingContactAddAlert = false
@@ -160,7 +162,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Backup contacts action
@@ -189,7 +191,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Toggle dark mode for modals
@@ -232,13 +234,15 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Location accuracy
+                                // Location permissions prompt
+                                NotificationCenter.default.post(
+                                    name: .requestLocationPermission, object: nil)
                             }) {
                                 HStack {
                                     Image(systemName: "location.circle.fill")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                    Text("Location Accuracy")
+                                    Text("Location Permissions")
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()
@@ -258,10 +262,25 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
-                                // Map type selection
+                                // Map type selection -> cycle through types via notification
+                                let next: MKMapType
+                                switch viewModel.selectedMapType {
+                                case "Standard":
+                                    next = .satellite
+                                    viewModel.selectedMapType = "Satellite"
+                                case "Satellite":
+                                    next = .hybrid
+                                    viewModel.selectedMapType = "Hybrid"
+                                default:
+                                    next = .standard
+                                    viewModel.selectedMapType = "Standard"
+                                }
+                                NotificationCenter.default.post(
+                                    name: .mapTypeChanged, object: nil,
+                                    userInfo: ["mapType": next.rawValue])
                             }) {
                                 HStack {
                                     Image(systemName: "map.fill")
@@ -282,7 +301,11 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Traffic display
+                                // Traffic display (toggled via notification)
+                                viewModel.showTraffic.toggle()
+                                NotificationCenter.default.post(
+                                    name: .trafficToggled, object: nil,
+                                    userInfo: ["enabled": viewModel.showTraffic])
                             }) {
                                 HStack {
                                     Image(systemName: "car.fill")
@@ -303,7 +326,13 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Units preference
+                                // Units preference toggle mi/km
+                                useMetricUnits.toggle()
+                                viewModel.units = useMetricUnits ? "Kilometers" : "Miles"
+                                // Notify listeners that units changed
+                                NotificationCenter.default.post(
+                                    name: .unitsPreferenceChanged, object: nil,
+                                    userInfo: ["useMetricUnits": useMetricUnits])
                             }) {
                                 HStack {
                                     Image(systemName: "ruler.fill")
@@ -313,7 +342,7 @@ struct SettingsView: View {
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()
-                                    Text(viewModel.units)
+                                    Text(useMetricUnits ? "Kilometers" : "Miles")
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                     Image(systemName: "chevron.right")
@@ -332,18 +361,26 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
-                                // Default alarm radius
+                                // Default alarm radius: cycle 250m, 500m, 1000m
+                                let current = viewModel.defaultAlarmRadius
+                                let next = (current == 250) ? 500 : (current == 500 ? 1000 : 250)
+                                viewModel.defaultAlarmRadius = next
+                                UserDefaults.standard.set(
+                                    Double(next), forKey: "defaultAlarmRadiusMeters")
+                                NotificationCenter.default.post(
+                                    name: .alarmDistanceChanged, object: nil,
+                                    userInfo: ["radius": Double(next)])
                             }) {
                                 HStack {
                                     Image(systemName: "circle.dashed")
                                         .font(.title2)
                                         .foregroundColor(.white)
                                     Text("Default Alarm Radius")
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
                                     Spacer()
                                     Text("\(viewModel.defaultAlarmRadius)m")
                                         .font(.caption)
@@ -377,13 +414,15 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Backup contacts
+                                // Reset overlays button
+                                NotificationCenter.default.post(
+                                    name: .resetMapOverlays, object: nil)
                             }) {
                                 HStack {
-                                    Image(systemName: "person.2.fill")
+                                    Image(systemName: "arrow.counterclockwise.circle.fill")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                    Text("Backup Contacts")
+                                    Text("Reset Map Overlays")
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()
@@ -421,7 +460,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Clear app data
@@ -486,7 +525,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Help center
@@ -550,9 +589,10 @@ struct SettingsView: View {
             .background(Color.black)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
-            .navigationBarItems(trailing: Button("Done") {
-                dismiss()
-            })
+            .navigationBarItems(
+                trailing: Button("Done") {
+                    dismiss()
+                })
         }
         .background(Color.black)
     }
@@ -698,8 +738,7 @@ struct SettingsButtonStyle: ButtonStyle {
             .padding()
             .frame(maxWidth: .infinity)
             .background(
-                isDestructive ? Color.red.opacity(0.8) : 
-                Color.gray.opacity(0.2)
+                isDestructive ? Color.red.opacity(0.8) : Color.gray.opacity(0.2)
             )
             .foregroundColor(.white)
             .cornerRadius(12)

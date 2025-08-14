@@ -1,42 +1,35 @@
 import SwiftUI
 
 struct QuickDestinationRow: View {
-    let title: String
-    let subtitle: String
-    let icon: String
+    let destination: QuickDestination
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color("MainOrange"), .orange]),
-                                startPoint: .top,
-                                endPoint: .bottom)
-                        )
+                        .fill(destination.color)
                         .frame(width: 40, height: 40)
-                    
-                    Image(systemName: icon)
+
+                    Image(systemName: destination.icon)
                         .resizable()
                         .foregroundColor(.white)
                         .frame(width: 16, height: 16)
                 }
-                
+
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
+                    Text(destination.title)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(Color("1"))
-                    
-                    Text(subtitle)
+
+                    Text(destination.subtitle)
                         .font(.system(size: 14))
                         .foregroundColor(Color("2"))
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .foregroundColor(Color("3"))
                     .font(.system(size: 14, weight: .medium))
@@ -53,9 +46,7 @@ struct QuickDestinationRow: View {
 struct QuickDestinationRow_Previews: PreviewProvider {
     static var previews: some View {
         QuickDestinationRow(
-            title: "Home",
-            subtitle: "123 Main St",
-            icon: "house.fill"
+            destination: QuickDestination.defaultDestinations[0]
         ) {
             print("Home tapped")
         }
