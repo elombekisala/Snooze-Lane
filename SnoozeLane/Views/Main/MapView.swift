@@ -891,10 +891,11 @@ struct MapView: View {
         // Check if we should trigger the Firebase function via TripProgressViewModel
         if distance <= alarmDistance {
             print(
-                "🎯 MapView: Within alarm distance, triggering TripProgressViewModel threshold check"
+                "🎯 MapView: Within alarm distance (\(alarmDistance)m), triggering TripProgressViewModel threshold check"
             )
 
-            // Trigger the TripProgressViewModel's threshold detection
+            // Trigger the TripProgressViewModel's threshold detection using the user's alarm distance
+            // This ensures the Firebase function triggers at the user's configured threshold, not hardcoded 500m
             tripProgressViewModel.checkThresholdReached(distance: distance)
 
             // Also call the local destination reached logic
@@ -907,25 +908,29 @@ struct MapView: View {
         provideHapticFeedback()
 
         print("🎯 MapView: Destination reached - user within alarm distance")
-        print("🎯 MapView: Trip will continue until user manually ends it or reaches actual destination")
-        
+        print(
+            "🎯 MapView: Trip will continue until user manually ends it or reaches actual destination"
+        )
+
         // Don't automatically end the trip - let it continue
         // The Firebase function will be triggered by TripProgressViewModel.checkThresholdReached
-        // when the user crosses the 500m threshold
-        
+        // when the user crosses their configured alarm distance threshold
+
         // Only end trip if user is very close (within 50m) to actual destination
         if let destination = selectedDestination {
             let destinationLocation = CLLocation(
                 latitude: destination.latitude, longitude: destination.longitude)
             let distance = locationManager.location?.distance(from: destinationLocation) ?? 0
-            
+
             if distance <= 50.0 {
                 print("🎯 MapView: User very close to destination (50m), ending trip")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     endTrip()
                 }
             } else {
-                print("🎯 MapView: User within alarm distance but not at destination yet, continuing trip")
+                print(
+                    "🎯 MapView: User within alarm distance but not at destination yet, continuing trip"
+                )
             }
         }
     }

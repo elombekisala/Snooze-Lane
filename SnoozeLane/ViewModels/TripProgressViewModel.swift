@@ -371,11 +371,16 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             "🎯 Destination coordinates: \(destination.coordinate.latitude), \(destination.coordinate.longitude)"
         )
 
-        print("🎯 Threshold check - Distance: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
+        // Use the user's configured alarm distance as the threshold, not the hardcoded value
+        // This ensures the Firebase function triggers at the user's chosen distance
+        let userAlarmDistance = UserDefaults.standard.double(forKey: "defaultAlarmRadiusMeters")
+        let threshold = userAlarmDistance > 0 ? userAlarmDistance : 500.0 // Fallback to 500m if not set
+        
+        print("🎯 Threshold check - Distance: \(distance)m, User's Alarm Distance: \(threshold)m")
 
-        if distance <= alarmDistanceThreshold {
+        if distance <= threshold {
             print(
-                "🎯 Distance threshold reached! Current: \(distance)m, Threshold: \(alarmDistanceThreshold)m"
+                "🎯 Distance threshold reached! Current: \(distance)m, Threshold: \(threshold)m"
             )
 
             // Only trigger if we haven't already reached destination
@@ -409,7 +414,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                 print("📞 Destination already reached, call already triggered")
             }
         } else {
-            print("🎯 Distance \(distance)m still above threshold \(alarmDistanceThreshold)m")
+            print("🎯 Distance \(distance)m still above threshold \(threshold)m")
         }
     }
 }
