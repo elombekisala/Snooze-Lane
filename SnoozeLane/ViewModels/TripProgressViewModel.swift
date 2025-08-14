@@ -336,6 +336,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                 
                 if !callMade {
                     print("📞 Call not yet made, triggering call function...")
+                    print("📞 FIREBASE FUNCTION WILL BE CALLED NOW!")
                     triggerCall()
                 } else {
                     print("📞 Call already made, skipping...")

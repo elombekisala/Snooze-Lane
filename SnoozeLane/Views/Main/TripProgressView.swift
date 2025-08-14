@@ -202,29 +202,25 @@ struct TripProgressView: View {
             }
         }
         .onChange(of: progressViewModel.distance) { distance in
-            // Check if user is within threshold and trigger call function
-            if distance <= progressViewModel.alarmDistanceThreshold && !tripCompleted
-                && progressViewModel.isStarted
-            {
-                print(
-                    "🎯 WITHIN THRESHOLD: Distance \(distance)m, Threshold \(progressViewModel.alarmDistanceThreshold)m"
-                )
-                // Let the ViewModel handle the threshold detection and call triggering
-                progressViewModel.checkThresholdReached(distance: distance)
-                tripCompleted = true
-                print("🔔 ARRIVAL THRESHOLD REACHED - CALL FUNCTION TRIGGERED")
-                NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+            // Single, consolidated threshold detection for call triggering
+            if distance <= progressViewModel.alarmDistanceThreshold && progressViewModel.isStarted {
+                print("🎯 THRESHOLD DETECTED: Distance \(distance)m, Threshold \(progressViewModel.alarmDistanceThreshold)m")
+                
+                // Only trigger if we haven't already completed the trip
+                if !tripCompleted {
+                    print("📞 TRIGGERING CALL FUNCTION - First time within threshold")
+                    progressViewModel.checkThresholdReached(distance: distance)
+                    tripCompleted = true
+                    print("🔔 ARRIVAL THRESHOLD REACHED - CALL FUNCTION TRIGGERED")
+                    NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+                } else {
+                    print("📞 Already within threshold, call function already triggered")
+                }
             } else if distance > progressViewModel.alarmDistanceThreshold && tripCompleted && progressViewModel.isStarted {
                 // User moved outside threshold - reset trip completion
                 print("🚫 OUTSIDE THRESHOLD: Distance \(distance)m, Threshold \(progressViewModel.alarmDistanceThreshold)m")
                 tripCompleted = false
                 print("🔄 TRIP COMPLETION RESET")
-            }
-            
-            // Additional threshold check for call triggering (independent of trip completion)
-            if distance <= progressViewModel.alarmDistanceThreshold && progressViewModel.isStarted {
-                print("📞 CALL THRESHOLD CHECK: Distance \(distance)m, Threshold \(progressViewModel.alarmDistanceThreshold)m")
-                progressViewModel.checkThresholdReached(distance: distance)
             }
         }
     }
