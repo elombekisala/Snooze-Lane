@@ -150,6 +150,7 @@ struct SettingsView: View {
     @State private var alertMessage = ""
     @State private var alertTitle = ""
     @State private var showLocationPermissionsSheet = false
+    @State private var showAddContactSheet = false
 
     let twilioPhoneNumber = "8557096502"
 
@@ -195,7 +196,6 @@ struct SettingsView: View {
                             .padding(.horizontal)
 
                         VStack(spacing: 12) {
-
 
                             Button(action: {
                                 // Show location permissions options
@@ -697,21 +697,25 @@ struct SettingsView: View {
     //            print("Error signing out: \(signOutError.localizedDescription)")
     //        }
     //    }
-    
+
     // MARK: - New Functions
-    
+
     func addSnoozeLaneToContacts() {
         print("📱 Adding Snooze Lane to contacts")
         showAddContactSheet = true
     }
-    
+
     func showLocationPermissionsOptions() {
         print("📍 Showing location permissions options")
         showLocationPermissionsSheet = true
     }
-    
+
     func getLocationPermissionStatus() -> String {
-        switch locationManager.authorizationStatus {
+        guard let status = locationManager.authorizationStatus else {
+            return "Not Set"
+        }
+
+        switch status {
         case .notDetermined:
             return "Not Set"
         case .restricted, .denied:
@@ -827,7 +831,7 @@ struct InstructionsView: View {
 struct LocationPermissionsView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var locationManager: LocationManager
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -837,19 +841,19 @@ struct LocationPermissionsView: View {
                         .font(.system(size: 60))
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
-                    
+
                     Text("Location Permissions")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
-                    
+
                     Text("Choose how Snooze Lane can access your location")
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top)
-                
+
                 // Permission Options
                 VStack(spacing: 16) {
                     PermissionOptionButton(
@@ -861,7 +865,7 @@ struct LocationPermissionsView: View {
                             requestLocationPermission(.denied)
                         }
                     )
-                    
+
                     PermissionOptionButton(
                         title: "While Using App",
                         subtitle: "Snooze Lane can access your location only when the app is open",
@@ -871,10 +875,11 @@ struct LocationPermissionsView: View {
                             requestLocationPermission(.authorizedWhenInUse)
                         }
                     )
-                    
+
                     PermissionOptionButton(
                         title: "Always Allow",
-                        subtitle: "Snooze Lane can access your location even when the app is closed",
+                        subtitle:
+                            "Snooze Lane can access your location even when the app is closed",
                         icon: "location.fill",
                         color: .green,
                         action: {
@@ -883,15 +888,15 @@ struct LocationPermissionsView: View {
                     )
                 }
                 .padding(.horizontal)
-                
+
                 Spacer()
-                
+
                 // Current Status
                 VStack(spacing: 8) {
                     Text("Current Status:")
                         .font(.headline)
                         .foregroundColor(.white)
-                    
+
                     Text(getCurrentPermissionStatus())
                         .font(.subheadline)
                         .foregroundColor(.blue)
@@ -913,10 +918,10 @@ struct LocationPermissionsView: View {
             }
         }
     }
-    
+
     private func requestLocationPermission(_ status: CLAuthorizationStatus) {
         print("📍 Requesting location permission: \(status.rawValue)")
-        
+
         switch status {
         case .denied:
             // Open system settings
@@ -925,14 +930,18 @@ struct LocationPermissionsView: View {
             }
         case .authorizedWhenInUse, .authorizedAlways:
             // Request permission through location manager
-            locationManager.requestWhenInUseAuthorization()
+            locationManager.requestAuthorization()
         default:
             break
         }
     }
-    
+
     private func getCurrentPermissionStatus() -> String {
-        switch locationManager.authorizationStatus {
+        guard let status = locationManager.authorizationStatus else {
+            return "Not Determined"
+        }
+
+        switch status {
         case .notDetermined:
             return "Not Determined"
         case .restricted, .denied:
@@ -954,7 +963,7 @@ struct PermissionOptionButton: View {
     let icon: String
     let color: Color
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
@@ -962,23 +971,23 @@ struct PermissionOptionButton: View {
                     .font(.title2)
                     .foregroundColor(color)
                     .frame(width: 30)
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
                         .foregroundColor(.white)
-                    
+
                     Text(subtitle)
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.7))
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(.gray)
-                }
+            }
             .padding()
             .background(Color.gray.opacity(0.2))
             .cornerRadius(12)
