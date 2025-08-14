@@ -149,6 +149,7 @@ struct SettingsView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var alertTitle = ""
+    @State private var showLocationPermissionsSheet = false
 
     let twilioPhoneNumber = "8557096502"
 
@@ -165,13 +166,14 @@ struct SettingsView: View {
 
                         VStack(spacing: 12) {
                             Button(action: {
-                                // Backup contacts action
+                                // Add Snooze Lane to contacts action
+                                addSnoozeLaneToContacts()
                             }) {
                                 HStack {
-                                    Image(systemName: "person.2.fill")
+                                    Image(systemName: "person.badge.plus")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                    Text("Backup Contacts")
+                                    Text("Add Snooze Lane to Contacts")
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()
@@ -193,50 +195,11 @@ struct SettingsView: View {
                             .padding(.horizontal)
 
                         VStack(spacing: 12) {
-                            Button(action: {
-                                // Toggle dark mode for modals
-                                viewModel.isDarkModeEnabled.toggle()
-                            }) {
-                                HStack {
-                                    Image(systemName: "moon.fill")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                    Text("Dark Mode for Modals")
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.white)
-                                    Spacer()
-                                    Text(viewModel.isDarkModeEnabled ? "On" : "Off")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                            .buttonStyle(SettingsButtonStyle())
+
 
                             Button(action: {
-                                // Notification preferences
-                            }) {
-                                HStack {
-                                    Image(systemName: "bell.fill")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                    Text("Notifications")
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.white)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                            .buttonStyle(SettingsButtonStyle())
-
-                            Button(action: {
-                                // Location permissions prompt
-                                NotificationCenter.default.post(
-                                    name: .requestLocationPermission, object: nil)
+                                // Show location permissions options
+                                showLocationPermissionsOptions()
                             }) {
                                 HStack {
                                     Image(systemName: "location.circle.fill")
@@ -246,6 +209,9 @@ struct SettingsView: View {
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()
+                                    Text(getLocationPermissionStatus())
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
                                     Image(systemName: "chevron.right")
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -595,6 +561,9 @@ struct SettingsView: View {
                 })
         }
         .background(Color.black)
+        .sheet(isPresented: $showLocationPermissionsSheet) {
+            LocationPermissionsView()
+        }
     }
 
     func savePhoneNumber() {
@@ -728,6 +697,33 @@ struct SettingsView: View {
     //            print("Error signing out: \(signOutError.localizedDescription)")
     //        }
     //    }
+    
+    // MARK: - New Functions
+    
+    func addSnoozeLaneToContacts() {
+        print("📱 Adding Snooze Lane to contacts")
+        showAddContactSheet = true
+    }
+    
+    func showLocationPermissionsOptions() {
+        print("📍 Showing location permissions options")
+        showLocationPermissionsSheet = true
+    }
+    
+    func getLocationPermissionStatus() -> String {
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            return "Not Set"
+        case .restricted, .denied:
+            return "Never"
+        case .authorizedAlways:
+            return "Always"
+        case .authorizedWhenInUse:
+            return "While Using"
+        @unknown default:
+            return "Unknown"
+        }
+    }
 }
 
 struct SettingsButtonStyle: ButtonStyle {
@@ -824,6 +820,170 @@ struct InstructionsView: View {
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color("4").opacity(0.5))
         )
+    }
+}
+
+// MARK: - Location Permissions View
+struct LocationPermissionsView: View {
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var locationManager: LocationManager
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "location.circle.fill")
+                        .font(.system(size: 60))
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                    
+                    Text("Location Permissions")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Text("Choose how Snooze Lane can access your location")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top)
+                
+                // Permission Options
+                VStack(spacing: 16) {
+                    PermissionOptionButton(
+                        title: "Never",
+                        subtitle: "Snooze Lane cannot access your location",
+                        icon: "xmark.circle.fill",
+                        color: .red,
+                        action: {
+                            requestLocationPermission(.denied)
+                        }
+                    )
+                    
+                    PermissionOptionButton(
+                        title: "While Using App",
+                        subtitle: "Snooze Lane can access your location only when the app is open",
+                        icon: "location.circle.fill",
+                        color: .blue,
+                        action: {
+                            requestLocationPermission(.authorizedWhenInUse)
+                        }
+                    )
+                    
+                    PermissionOptionButton(
+                        title: "Always Allow",
+                        subtitle: "Snooze Lane can access your location even when the app is closed",
+                        icon: "location.fill",
+                        color: .green,
+                        action: {
+                            requestLocationPermission(.authorizedAlways)
+                        }
+                    )
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+                
+                // Current Status
+                VStack(spacing: 8) {
+                    Text("Current Status:")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text(getCurrentPermissionStatus())
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(0.2))
+                        .cornerRadius(8)
+                }
+                .padding(.bottom)
+            }
+            .background(Color.black)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func requestLocationPermission(_ status: CLAuthorizationStatus) {
+        print("📍 Requesting location permission: \(status.rawValue)")
+        
+        switch status {
+        case .denied:
+            // Open system settings
+            if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(settingsUrl)
+            }
+        case .authorizedWhenInUse, .authorizedAlways:
+            // Request permission through location manager
+            locationManager.requestWhenInUseAuthorization()
+        default:
+            break
+        }
+    }
+    
+    private func getCurrentPermissionStatus() -> String {
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            return "Not Determined"
+        case .restricted, .denied:
+            return "Never"
+        case .authorizedAlways:
+            return "Always Allow"
+        case .authorizedWhenInUse:
+            return "While Using App"
+        @unknown default:
+            return "Unknown"
+        }
+    }
+}
+
+// MARK: - Permission Option Button
+struct PermissionOptionButton: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
+                    .frame(width: 30)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                }
+            .padding()
+            .background(Color.gray.opacity(0.2))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
