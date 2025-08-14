@@ -369,7 +369,9 @@ struct MapView: View {
                         alarmDistance: $alarmDistance,
                         mapState: $mapState,
                         useMetricSystem: useMetricSystem,
-                        onStartTrip: startTrip
+                        onStartTrip: {
+                            startTripWithProgressViewModel()
+                        }
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -771,24 +773,38 @@ struct MapView: View {
     }
 
     private func startTrip() {
-        print("🚀 MapView.startTrip() called")
-        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            mapState = .tripInProgress
+        }
+
+        // Start monitoring for destination approach
+        startDestinationMonitoring()
+
+        // Provide haptic feedback
+        provideHapticFeedback()
+    }
+    
+    private func startTripWithProgressViewModel() {
+        print("🚀 MapView.startTripWithProgressViewModel() called")
+
         // Set destination in TripProgressViewModel if we have a selected destination
         if let selectedDestination = selectedDestination {
             let destinationLocation = CLLocation(
-                latitude: selectedDestination.latitude, 
+                latitude: selectedDestination.latitude,
                 longitude: selectedDestination.longitude
             )
-            progressViewModel.setDestination(destinationLocation)
-            print("🎯 Destination set in MapView.startTrip(): \(selectedDestination.latitude), \(selectedDestination.longitude)")
+            tripProgressViewModel.setDestination(destinationLocation)
+            print(
+                "🎯 Destination set in MapView.startTripWithProgressViewModel(): \(selectedDestination.latitude), \(selectedDestination.longitude)"
+            )
         } else {
-            print("⚠️ No selected destination found in MapView.startTrip()")
+            print("⚠️ No selected destination found in MapView.startTripWithProgressViewModel()")
         }
-        
+
         // Actually start the trip in TripProgressViewModel
-        progressViewModel.startTrip()
+        tripProgressViewModel.startTrip()
         print("✅ Trip started in TripProgressViewModel")
-        
+
         withAnimation(.easeInOut(duration: 0.3)) {
             mapState = .tripInProgress
         }
