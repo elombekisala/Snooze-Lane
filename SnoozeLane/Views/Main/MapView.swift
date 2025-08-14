@@ -783,7 +783,7 @@ struct MapView: View {
         // Provide haptic feedback
         provideHapticFeedback()
     }
-    
+
     private func startTripWithProgressViewModel() {
         print("🚀 MapView.startTripWithProgressViewModel() called")
 
@@ -843,6 +843,24 @@ struct MapView: View {
             showTopControls = mapState.shouldShowTopControls
             showMapControls = mapState.shouldShowMapControls
         }
+        
+        // Handle trip state changes
+        if mapState == .tripInProgress {
+            print("🗺️ MapView: State changed to tripInProgress, starting trip monitoring")
+            startTripMonitoring()
+        }
+    }
+    
+    private func startTripMonitoring() {
+        print("🗺️ MapView: Starting trip monitoring")
+        
+        // Start monitoring for destination approach
+        startDestinationMonitoring()
+        
+        // Provide haptic feedback
+        provideHapticFeedback()
+        
+        print("✅ MapView: Trip monitoring started successfully")
     }
 
     private func handleLocationUpdate(_ newLocation: CLLocation?) {
