@@ -385,41 +385,18 @@ class LoginViewModel: ObservableObject {
                 // we'll simulate a successful authentication for the simulator
                 print("✅ Simulator: Simulating successful phone authentication")
 
-                // Create a test user document in Firestore
-                let testUID = "simulator-\(UUID().uuidString)"
-                let db = Firestore.firestore()
-                let userRef = db.collection("Users").document(testUID)
-
-                userRef.setData([
-                    "phoneNumber": self.fullPhoneNumber,
-                    "CallCount": 0,
-                    "createdAt": FieldValue.serverTimestamp(),
-                    "isSimulatorUser": true,
-                    "simulatorUID": testUID,
-                ]) { [weak self] error in
-                    if let error = error {
-                        print("❌ Error creating Firestore document: \(error.localizedDescription)")
-                        self?.errorMsg =
-                            "Error creating user profile: \(error.localizedDescription)"
-                        withAnimation {
-                            self?.error.toggle()
-                            self?.loading = false
-                        }
-                        return
-                    }
-
-                    print("✅ Firestore document created successfully")
-
-                    // Successfully created test user
-                    withAnimation {
-                        self?.status = true
-                        self?.loading = false
-                    }
-
-                    print(
-                        "✅ Simulator: User logged in successfully with phone: \(self?.fullPhoneNumber ?? "unknown")"
-                    )
+                // For simulator, we'll skip Firestore creation and just log in
+                // This avoids permission issues while testing
+                print("🔧 Simulator: Skipping Firestore document creation to avoid permission issues")
+                
+                // Successfully authenticated (simulated)
+                withAnimation {
+                    self.status = true
+                    self.loading = false
                 }
+                
+                print("✅ Simulator: User logged in successfully with phone: \(self.fullPhoneNumber)")
+                print("🔧 Note: Firestore document will be created when needed during app usage")
             } else {
                 self.errorMsg = "Invalid verification code. Use: \(testVerificationCode)"
                 withAnimation {
