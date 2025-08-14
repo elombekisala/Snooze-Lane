@@ -341,18 +341,6 @@ struct MapView: View {
                                 )
                         }
                         .transition(.scale.combined(with: .opacity))
-                        .overlay(
-                            // Tooltip
-                            Text("Cancel")
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.black.opacity(0.8))
-                                .cornerRadius(8)
-                                .shadow(radius: 2)
-                                .transition(.opacity.combined(with: .scale))
-                        )
                     }
                 }
                 .padding(.top, 60)  // Account for status bar
