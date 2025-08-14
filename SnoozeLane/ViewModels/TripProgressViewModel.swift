@@ -233,14 +233,17 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         }
 
         print("📞 Initiating call function (attempt \(retryCount + 1))")
+        print("📞 Current state - callMade: \(callMade), hasReachedDestination: \(hasReachedDestination)")
         callInProgress = true
 
         let functions = Functions.functions()
         print("📞 Calling Firebase function 'makeCallOnTrigger'...")
+        
         functions.httpsCallable("makeCallOnTrigger").call { result, error in
             self.callInProgress = false
             if let error = error {
-                print("❌ Error calling function: \(error.localizedDescription)")
+                print("❌ Error calling Firebase function: \(error.localizedDescription)")
+                print("❌ Error details: \(error)")
                 if retryCount < 3 {  // Retry logic with up to 3 retries
                     print("📞 Retrying call in 2 seconds... (attempt \(retryCount + 2))")
                     DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
@@ -250,7 +253,8 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                     print("❌ Call failed after \(retryCount + 1) attempts")
                 }
             } else {
-                print("✅ Call succeeded, result: \(result?.data ?? "No data")")
+                print("✅ Firebase function call succeeded!")
+                print("✅ Result data: \(result?.data ?? "No data")")
                 self.callMade = true
                 self.incrementCallCount()
             }

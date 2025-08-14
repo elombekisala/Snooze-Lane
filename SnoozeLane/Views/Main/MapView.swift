@@ -615,7 +615,7 @@ struct MapView: View {
 
     private func clearDestination() {
         print("🗑️ Clearing destination and all overlays")
-        
+
         // Clear all destination-related data
         selectedDestination = nil
         destinationAnnotation = nil
@@ -637,12 +637,14 @@ struct MapView: View {
                     span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                 )
             }
-            print("🗺️ Recentered map on user location: \(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude)")
+            print(
+                "🗺️ Recentered map on user location: \(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude)"
+            )
         }
 
         // Stop location updates
         stopLocationUpdateTimer()
-        
+
         print("✅ Destination and overlays cleared successfully")
     }
 
