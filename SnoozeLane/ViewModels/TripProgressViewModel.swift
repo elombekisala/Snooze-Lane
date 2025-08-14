@@ -365,6 +365,8 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             return 
         }
         
+        print("🎯 Destination coordinates: \(destination.coordinate.latitude), \(destination.coordinate.longitude)")
+        
         print("🎯 Threshold check - Distance: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
         
         if distance <= alarmDistanceThreshold {
