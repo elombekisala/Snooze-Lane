@@ -843,23 +843,23 @@ struct MapView: View {
             showTopControls = mapState.shouldShowTopControls
             showMapControls = mapState.shouldShowMapControls
         }
-        
+
         // Handle trip state changes
         if mapState == .tripInProgress {
             print("🗺️ MapView: State changed to tripInProgress, starting trip monitoring")
             startTripMonitoring()
         }
     }
-    
+
     private func startTripMonitoring() {
         print("🗺️ MapView: Starting trip monitoring")
-        
+
         // Start monitoring for destination approach
         startDestinationMonitoring()
-        
+
         // Provide haptic feedback
         provideHapticFeedback()
-        
+
         print("✅ MapView: Trip monitoring started successfully")
     }
 
@@ -886,8 +886,16 @@ struct MapView: View {
             latitude: destination.latitude, longitude: destination.longitude)
         let distance = location.distance(from: destinationLocation)
 
+        print("🗺️ MapView: Distance check - Current: \(distance)m, Alarm: \(alarmDistance)m")
+
+        // Check if we should trigger the Firebase function via TripProgressViewModel
         if distance <= alarmDistance {
-            // Destination reached!
+            print("🎯 MapView: Within alarm distance, triggering TripProgressViewModel threshold check")
+            
+            // Trigger the TripProgressViewModel's threshold detection
+            tripProgressViewModel.checkThresholdReached(distance: distance)
+            
+            // Also call the local destination reached logic
             destinationReached()
         }
     }
