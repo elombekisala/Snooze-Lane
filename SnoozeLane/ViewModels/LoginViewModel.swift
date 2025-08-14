@@ -370,31 +370,25 @@ class LoginViewModel: ObservableObject {
     func verifyCode() {
         loading = true
 
-                #if targetEnvironment(simulator)
-            // For simulator testing
+        #if targetEnvironment(simulator)
+            // For simulator testing with phone authentication
             if code == testVerificationCode {
                 print("🧪 Simulator: Test verification code accepted")
                 print("📱 Using configured test phone number: \(self.fullPhoneNumber)")
                 
-                // For simulator, we'll simulate a successful phone authentication
-                // Since you've already configured the test phone number in Firebase
-                print("✅ Simulator: Simulating successful phone authentication")
+                // Use the same phone authentication flow as real devices
+                // Since you have test phone numbers configured in Firebase
+                let credential = PhoneAuthProvider.provider().credential(
+                    withVerificationID: self.CODE, // This will be "test-verification-id"
+                    verificationCode: code
+                )
                 
-                // Create a test user document in Firestore with a simulated UID
-                let testUID = "simulator-\(UUID().uuidString)"
-                let db = Firestore.firestore()
-                let userRef = db.collection("Users").document(testUID)
+                print("🔐 Simulator: Attempting phone authentication with test credentials")
                 
-                userRef.setData([
-                    "phoneNumber": self.fullPhoneNumber,
-                    "CallCount": 0,
-                    "createdAt": FieldValue.serverTimestamp(),
-                    "isSimulatorUser": true,
-                    "simulatorUID": testUID
-                ]) { [weak self] error in
+                Auth.auth().signIn(with: credential) { [weak self] result, error in
                     if let error = error {
-                        print("❌ Error creating Firestore document: \(error.localizedDescription)")
-                        self?.errorMsg = "Error creating user profile: \(error.localizedDescription)"
+                        print("❌ Simulator phone auth error: \(error.localizedDescription)")
+                        self?.errorMsg = "Phone authentication failed: \(error.localizedDescription)"
                         withAnimation {
                             self?.error.toggle()
                             self?.loading = false
@@ -402,16 +396,49 @@ class LoginViewModel: ObservableObject {
                         return
                     }
                     
-                    print("✅ Firestore document created successfully")
-                    
-                    // Successfully created test user
-                    withAnimation {
-                        self?.status = true
-                        self?.loading = false
+                    guard let user = result?.user else {
+                        print("❌ No user returned from phone authentication")
+                        self?.errorMsg = "No user returned from phone authentication"
+                        withAnimation {
+                            self?.error.toggle()
+                            self?.loading = false
+                        }
+                        return
                     }
                     
-                    print("✅ Simulator test user created successfully with phone: \(self?.fullPhoneNumber ?? "unknown")")
-                    print("✅ User logged in successfully in simulator")
+                    print("✅ Simulator: Phone authentication successful for user: \(user.uid)")
+                    
+                    // Create Firestore document using the authenticated phone user
+                    let db = Firestore.firestore()
+                    let userRef = db.collection("Users").document(user.uid)
+                    let phoneNumber = user.phoneNumber ?? self?.fullPhoneNumber ?? "unknown"
+                    
+                    userRef.setData([
+                        "phoneNumber": phoneNumber,
+                        "CallCount": 0,
+                        "createdAt": FieldValue.serverTimestamp(),
+                        "isSimulatorUser": true
+                    ]) { error in
+                        if let error = error {
+                            print("❌ Error creating Firestore document: \(error.localizedDescription)")
+                            self?.errorMsg = "Error creating user profile: \(error.localizedDescription)"
+                            withAnimation {
+                                self?.error.toggle()
+                                self?.loading = false
+                            }
+                            return
+                        }
+                        
+                        print("✅ Firestore document created successfully")
+                        
+                        // Successfully authenticated and created user
+                        withAnimation {
+                            self?.status = true
+                            self?.loading = false
+                        }
+                        
+                        print("✅ Simulator: User logged in successfully with phone: \(phoneNumber)")
+                    }
                 }
             } else {
                 self.errorMsg = "Invalid verification code. Use: \(testVerificationCode)"
