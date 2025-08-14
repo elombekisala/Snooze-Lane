@@ -614,9 +614,13 @@ struct MapView: View {
     }
 
     private func clearDestination() {
+        print("🗑️ Clearing destination and all overlays")
+        
+        // Clear all destination-related data
         selectedDestination = nil
         destinationAnnotation = nil
         polylineCoordinates = []
+        routePolyline = nil
         alarmRadiusCircle = nil
         isNavigating = false
 
@@ -625,8 +629,21 @@ struct MapView: View {
             mapState = .noInput
         }
 
+        // Recenter map on user's current location
+        if let userLocation = locationManager.location {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                region = MKCoordinateRegion(
+                    center: userLocation.coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                )
+            }
+            print("🗺️ Recentered map on user location: \(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude)")
+        }
+
         // Stop location updates
         stopLocationUpdateTimer()
+        
+        print("✅ Destination and overlays cleared successfully")
     }
 
     private func cancelTripOrDestination() {
