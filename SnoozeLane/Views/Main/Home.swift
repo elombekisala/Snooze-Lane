@@ -8,12 +8,15 @@ struct Home: View {
     @State private var mapState: MapViewState = .noInput
     @State private var alarmDistance: Double = 482.81
     @State private var showSearchModal = false
+    @State private var showAddDestinationModal = false
 
     @EnvironmentObject var locationViewModel: LocationSearchViewModel
     @EnvironmentObject var tripProgressViewModel: TripProgressViewModel
     @EnvironmentObject var loginViewModel: LoginViewModel
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var windowSharedModel: WindowSharedModel
+    
+    // @State private var quickDestinationsManager = QuickDestinationsManager.shared
     
 
 
@@ -132,11 +135,10 @@ struct Home: View {
                             Spacer()
                             
                             Button(action: {
-                                // TODO: Add edit mode for quick destinations
-                                print("Edit quick destinations")
+                                showAddDestinationModal = true
                             }) {
-                                Image(systemName: "pencil.circle")
-                                    .foregroundColor(.white.opacity(0.7))
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.green)
                                     .font(.title3)
                             }
                         }
@@ -234,6 +236,11 @@ struct Home: View {
             .background(Color.black)
             .presentationDetents([.medium, .large])
         }
+        
+        // Add/Edit Quick Destination Modal
+        // .sheet(isPresented: $showAddDestinationModal) {
+        //     QuickDestinationEditView(quickDestinationsManager: quickDestinationsManager)
+        // }
     }
 
     // MARK: - Helper Functions

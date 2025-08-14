@@ -294,6 +294,38 @@ struct MapView: View {
                             )
                     }
                     .transition(.scale.combined(with: .opacity))
+
+                    // Cancel Trip/Destination Button - Only show when destination is selected
+                    if mapState != .noInput {
+                        Button(action: {
+                            cancelTripOrDestination()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.red)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(Color.white)
+                                        .shadow(
+                                            color: Color.red.opacity(0.3), radius: 4, x: 0,
+                                            y: 2)
+                                )
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                        .overlay(
+                            // Tooltip
+                            Text("Cancel")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .shadow(radius: 2)
+                                .transition(.opacity.combined(with: .scale))
+                        )
+                    }
                 }
                 .padding(.top, 60)  // Account for status bar
                 .padding(.trailing, 16)
@@ -579,6 +611,24 @@ struct MapView: View {
 
         // Stop location updates
         stopLocationUpdateTimer()
+    }
+
+    private func cancelTripOrDestination() {
+        print("🚫 Cancelling trip/destination selection")
+
+        // Provide haptic feedback
+        provideHapticFeedback()
+
+        // Clear all destination-related data
+        clearDestination()
+
+        // Reset any trip progress
+        tripProgressViewModel.resetTrip()
+
+        // Post notification to clear map overlays
+        NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+
+        print("✅ Trip/destination cancelled successfully")
     }
 
     private func updatePolylineCoordinates() {

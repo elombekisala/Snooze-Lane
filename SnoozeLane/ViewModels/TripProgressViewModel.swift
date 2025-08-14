@@ -297,6 +297,13 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         tripCompleted = false
         print("RESET TRIP PROGRESS FUNCTION CALLED.")
     }
+    
+    func resetTrip() {
+        print("🔄 Resetting trip state")
+        resetTripProgress()
+        isStarted = false
+        print("✅ Trip reset successfully")
+    }
 
     func startNewTrip() {
         // Reset everything for a fresh start
