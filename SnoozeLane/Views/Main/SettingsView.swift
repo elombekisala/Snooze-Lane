@@ -28,6 +28,10 @@ class SettingsViewModel: ObservableObject {
     private let logger = Logger(subsystem: "com.snoozelane.app", category: "Settings")
 
     init() {
+        // Load saved settings from UserDefaults
+        showTraffic = UserDefaults.standard.bool(forKey: "showTraffic")
+        print("🚦 SettingsViewModel initialized - Traffic setting loaded: \(showTraffic ? "ON" : "OFF")")
+        
         setupObserver()
         fetchCallCount()
     }
@@ -267,11 +271,21 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Traffic display (toggled via notification)
-                                viewModel.showTraffic.toggle()
+                                // Traffic display toggle with logging
+                                let newTrafficState = !viewModel.showTraffic
+                                viewModel.showTraffic = newTrafficState
+                                
+                                print("🚦 Traffic display toggled: \(newTrafficState ? "ON" : "OFF")")
+                                
+                                // Save to UserDefaults for persistence
+                                UserDefaults.standard.set(newTrafficState, forKey: "showTraffic")
+                                
+                                // Notify listeners that traffic setting changed
                                 NotificationCenter.default.post(
                                     name: .trafficToggled, object: nil,
-                                    userInfo: ["enabled": viewModel.showTraffic])
+                                    userInfo: ["enabled": newTrafficState])
+                                
+                                print("📢 Traffic notification posted: enabled=\(newTrafficState)")
                             }) {
                                 HStack {
                                     Image(systemName: "car.fill")
