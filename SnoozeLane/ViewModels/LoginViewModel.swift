@@ -373,35 +373,66 @@ class LoginViewModel: ObservableObject {
         #if targetEnvironment(simulator)
             // For simulator testing
             if code == testVerificationCode {
-                // Create a test user account for simulator
-                let testUID = "simulator-test-user-\(UUID().uuidString)"
-                let db = Firestore.firestore()
-                let userRef = db.collection("Users").document(testUID)
-
-                userRef.setData([
-                    "phoneNumber": self.fullPhoneNumber,
-                    "CallCount": 0,
-                    "createdAt": FieldValue.serverTimestamp(),
-                    "isSimulatorUser": true,
-                ]) { error in
+                print("🧪 Simulator: Test verification code accepted")
+                
+                // Create a test user using Firebase Auth (this handles permissions properly)
+                let testEmail = "test-\(UUID().uuidString)@snoozelane.test"
+                let testPassword = "testPassword123"
+                
+                Auth.auth().createUser(withEmail: testEmail, password: testPassword) { [weak self] result, error in
                     if let error = error {
-                        self.errorMsg = "Error creating test user: \(error.localizedDescription)"
+                        print("❌ Error creating test user: \(error.localizedDescription)")
+                        self?.errorMsg = "Error creating test user: \(error.localizedDescription)"
                         withAnimation {
-                            self.error.toggle()
-                            self.loading = false
+                            self?.error.toggle()
+                            self?.loading = false
                         }
                         return
                     }
-
-                    // Successfully created test user
-                    withAnimation {
-                        self.status = true
-                        self.loading = false
+                    
+                    guard let user = result?.user else {
+                        print("❌ No user returned from createUser")
+                        self?.errorMsg = "No user returned from createUser"
+                        withAnimation {
+                            self?.error.toggle()
+                            self?.loading = false
+                        }
+                        return
                     }
-
-                    print(
-                        "✅ Simulator test user created successfully with phone: \(self.fullPhoneNumber)"
-                    )
+                    
+                    print("✅ Test user created successfully: \(user.uid)")
+                    
+                    // Now create the Firestore document using the authenticated user
+                    let db = Firestore.firestore()
+                    let userRef = db.collection("Users").document(user.uid)
+                    
+                    userRef.setData([
+                        "phoneNumber": self?.fullPhoneNumber ?? "unknown",
+                        "CallCount": 0,
+                        "createdAt": FieldValue.serverTimestamp(),
+                        "isSimulatorUser": true,
+                        "email": testEmail
+                    ]) { error in
+                        if let error = error {
+                            print("❌ Error creating Firestore document: \(error.localizedDescription)")
+                            self?.errorMsg = "Error creating user profile: \(error.localizedDescription)"
+                            withAnimation {
+                                self?.error.toggle()
+                                self?.loading = false
+                            }
+                            return
+                        }
+                        
+                        print("✅ Firestore document created successfully")
+                        
+                        // Successfully created test user
+                        withAnimation {
+                            self?.status = true
+                            self?.loading = false
+                        }
+                        
+                        print("✅ Simulator test user created successfully with phone: \(self?.fullPhoneNumber ?? "unknown")")
+                    }
                 }
             } else {
                 self.errorMsg = "Invalid verification code. Use: \(testVerificationCode)"
