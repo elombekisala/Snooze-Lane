@@ -136,11 +136,24 @@ extension MapViewRepresentable {
                 self, selector: #selector(handleLocationSelected(_:)),
                 name: .locationSelected,
                 object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleUpdateTrafficVisibility(_:)),
+                name: .updateTrafficVisibility,
+                object: nil)
         }
 
         deinit {
             NotificationCenter.default.removeObserver(self)
             cleanup()
+        }
+
+        @objc func handleUpdateTrafficVisibility(_ notification: Notification) {
+            if let enabled = notification.userInfo?["enabled"] as? Bool {
+                if let std = parent.mapView.preferredConfiguration as? MKStandardMapConfiguration {
+                    std.showsTraffic = enabled
+                    parent.mapView.preferredConfiguration = std
+                }
+            }
         }
 
         private func cleanup() {

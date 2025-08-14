@@ -233,13 +233,14 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Location accuracy
+                                // Location permissions prompt
+                                NotificationCenter.default.post(name: .requestLocationPermission, object: nil)
                             }) {
                                 HStack {
                                     Image(systemName: "location.circle.fill")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                    Text("Location Accuracy")
+                                    Text("Location Permissions")
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()
@@ -262,7 +263,20 @@ struct SettingsView: View {
                         
                         VStack(spacing: 12) {
                             Button(action: {
-                                // Map type selection
+                                // Map type selection -> cycle through types via notification
+                                let next: MKMapType
+                                switch viewModel.selectedMapType {
+                                case "Standard":
+                                    next = .satellite
+                                    viewModel.selectedMapType = "Satellite"
+                                case "Satellite":
+                                    next = .hybrid
+                                    viewModel.selectedMapType = "Hybrid"
+                                default:
+                                    next = .standard
+                                    viewModel.selectedMapType = "Standard"
+                                }
+                                NotificationCenter.default.post(name: .mapTypeChanged, object: nil, userInfo: ["mapType": next.rawValue])
                             }) {
                                 HStack {
                                     Image(systemName: "map.fill")
@@ -283,7 +297,9 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Traffic display
+                                // Traffic display (toggled via notification)
+                                viewModel.showTraffic.toggle()
+                                NotificationCenter.default.post(name: .trafficToggled, object: nil, userInfo: ["enabled": viewModel.showTraffic])
                             }) {
                                 HStack {
                                     Image(systemName: "car.fill")
@@ -340,7 +356,12 @@ struct SettingsView: View {
                         
                         VStack(spacing: 12) {
                             Button(action: {
-                                // Default alarm radius
+                                // Default alarm radius: cycle 250m, 500m, 1000m
+                                let current = viewModel.defaultAlarmRadius
+                                let next = (current == 250) ? 500 : (current == 500 ? 1000 : 250)
+                                viewModel.defaultAlarmRadius = next
+                                UserDefaults.standard.set(Double(next), forKey: "defaultAlarmRadiusMeters")
+                                NotificationCenter.default.post(name: .alarmDistanceChanged, object: nil, userInfo: ["radius": Double(next)])
                             }) {
                                 HStack {
                                     Image(systemName: "circle.dashed")
@@ -382,13 +403,14 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Backup contacts
+                                // Reset overlays button
+                                NotificationCenter.default.post(name: .resetMapOverlays, object: nil)
                             }) {
                                 HStack {
-                                    Image(systemName: "person.2.fill")
+                                    Image(systemName: "arrow.counterclockwise.circle.fill")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                    Text("Backup Contacts")
+                                    Text("Reset Map Overlays")
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()

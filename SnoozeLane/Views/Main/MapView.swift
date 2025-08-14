@@ -156,15 +156,16 @@ struct MapView: View {
             }
             .onChange(of: useMetricSystem) { newValue in
                 // Save metric preference to UserDefaults
-            UserDefaults.standard.set(newValue, forKey: "useMetricUnits")
+                UserDefaults.standard.set(newValue, forKey: "useMetricUnits")
             }
-        .onReceive(NotificationCenter.default.publisher(for: .unitsPreferenceChanged)) { notif in
-            if let val = notif.userInfo?["useMetricUnits"] as? Bool {
-                useMetricSystem = val
-            } else {
-                useMetricSystem = UserDefaults.standard.bool(forKey: "useMetricUnits")
+            .onReceive(NotificationCenter.default.publisher(for: .unitsPreferenceChanged)) {
+                notif in
+                if let val = notif.userInfo?["useMetricUnits"] as? Bool {
+                    useMetricSystem = val
+                } else {
+                    useMetricSystem = UserDefaults.standard.bool(forKey: "useMetricUnits")
+                }
             }
-        }
 
             // Top Controls - Pinned to top right (State-based visibility)
             if mapState.shouldShowTopControls {
@@ -340,6 +341,23 @@ struct MapView: View {
         }
         .onAppear {
             setupLocationUpdates()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mapTypeChanged)) { notif in
+            if let raw = notif.userInfo?["mapType"] as? UInt, let t = MKMapType(rawValue: raw) {
+                mapType = t
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .trafficToggled)) { notif in
+            if let enabled = notif.userInfo?["enabled"] as? Bool {
+                NotificationCenter.default.post(name: .updateTrafficVisibility, object: nil, userInfo: ["enabled": enabled])
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .requestLocationPermission)) { _ in
+            locationManager.requestAuthorization()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .resetMapOverlays)) { _ in
+            NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+            mapState = .noInput
         }
         .onChange(of: mapState) {
             handleMapStateChange()
