@@ -20,4 +20,5 @@ extension Notification.Name {
     static let distanceUpdated = Notification.Name("distanceUpdated")
     static let fitMapToUserAndDestination = Notification.Name("fitMapToUserAndDestination")
     static let addDestinationAnnotation = Notification.Name("addDestinationAnnotation")
+    static let unitsPreferenceChanged = Notification.Name("unitsPreferenceChanged")
 }

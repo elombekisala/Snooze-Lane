@@ -71,7 +71,7 @@ struct MapView: View {
     @State private var showingDetails: Bool = false
     @State private var userHasInteractedWithMapBridge: Bool = false
     @State private var isFollowingUser: Bool = true
-    @State private var useMetricSystem: Bool = UserDefaults.standard.bool(forKey: "useMetricSystem")
+    @State private var useMetricSystem: Bool = UserDefaults.standard.bool(forKey: "useMetricUnits")
     @State private var transportationMode: TransportationMode = .car
 
     var body: some View {
@@ -156,8 +156,15 @@ struct MapView: View {
             }
             .onChange(of: useMetricSystem) { newValue in
                 // Save metric preference to UserDefaults
-                UserDefaults.standard.set(newValue, forKey: "useMetricSystem")
+            UserDefaults.standard.set(newValue, forKey: "useMetricUnits")
             }
+        .onReceive(NotificationCenter.default.publisher(for: .unitsPreferenceChanged)) { notif in
+            if let val = notif.userInfo?["useMetricUnits"] as? Bool {
+                useMetricSystem = val
+            } else {
+                useMetricSystem = UserDefaults.standard.bool(forKey: "useMetricUnits")
+            }
+        }
 
             // Top Controls - Pinned to top right (State-based visibility)
             if mapState.shouldShowTopControls {

@@ -137,6 +137,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @AppStorage("hasCompletedWalkthrough") var hasCompletedWalkthrough: Bool = false
     @AppStorage("currentPage") var currentPage: Int = 1
+    @AppStorage("useMetricUnits") var useMetricUnits: Bool = false
     @State private var isLoggingOut = false
 
     @State private var showingContactAddAlert = false
@@ -303,7 +304,11 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Units preference
+                                // Units preference toggle mi/km
+                                useMetricUnits.toggle()
+                                viewModel.units = useMetricUnits ? "Kilometers" : "Miles"
+                                // Notify listeners that units changed
+                                NotificationCenter.default.post(name: .unitsPreferenceChanged, object: nil, userInfo: ["useMetricUnits": useMetricUnits])
                             }) {
                                 HStack {
                                     Image(systemName: "ruler.fill")
@@ -313,7 +318,7 @@ struct SettingsView: View {
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
                                     Spacer()
-                                    Text(viewModel.units)
+                                    Text(useMetricUnits ? "Kilometers" : "Miles")
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                     Image(systemName: "chevron.right")
