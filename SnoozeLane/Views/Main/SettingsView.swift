@@ -32,6 +32,23 @@ class SettingsViewModel: ObservableObject {
         showTraffic = UserDefaults.standard.bool(forKey: "showTraffic")
         print("🚦 SettingsViewModel initialized - Traffic setting loaded: \(showTraffic ? "ON" : "OFF")")
         
+        // Load units preference
+        let savedUnits = UserDefaults.standard.bool(forKey: "useMetricUnits")
+        units = savedUnits ? "Kilometers" : "Miles"
+        print("📏 SettingsViewModel initialized - Units preference loaded: \(units)")
+        
+        // Load default alarm radius
+        let savedRadius = UserDefaults.standard.double(forKey: "defaultAlarmRadiusMeters")
+        if savedRadius > 0 {
+            defaultAlarmRadius = Int(savedRadius)
+            print("🔔 SettingsViewModel initialized - Default alarm radius loaded: \(defaultAlarmRadius)m")
+        } else {
+            // Set default if none saved
+            defaultAlarmRadius = 500
+            UserDefaults.standard.set(Double(defaultAlarmRadius), forKey: "defaultAlarmRadiusMeters")
+            print("🔔 SettingsViewModel initialized - Default alarm radius set to default: \(defaultAlarmRadius)m")
+        }
+        
         setupObserver()
         fetchCallCount()
     }
@@ -306,13 +323,28 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Units preference toggle mi/km
-                                useMetricUnits.toggle()
-                                viewModel.units = useMetricUnits ? "Kilometers" : "Miles"
+                                // Units preference toggle mi/km with enhanced logging
+                                let newUnits = !useMetricUnits
+                                useMetricUnits = newUnits
+                                
+                                let unitText = newUnits ? "Kilometers" : "Miles"
+                                let unitSymbol = newUnits ? "km" : "mi"
+                                
+                                print("📏 Units preference changed: \(unitText) (\(unitSymbol))")
+                                print("   Previous: \(viewModel.units)")
+                                print("   New: \(unitText)")
+                                
+                                viewModel.units = unitText
+                                
+                                // Save to UserDefaults for persistence
+                                UserDefaults.standard.set(newUnits, forKey: "useMetricUnits")
+                                
                                 // Notify listeners that units changed
                                 NotificationCenter.default.post(
                                     name: .unitsPreferenceChanged, object: nil,
-                                    userInfo: ["useMetricUnits": useMetricUnits])
+                                    userInfo: ["useMetricUnits": newUnits, "unitText": unitText])
+                                
+                                print("✅ Units preference saved and notification posted")
                             }) {
                                 HStack {
                                     Image(systemName: "ruler.fill")
@@ -344,15 +376,26 @@ struct SettingsView: View {
 
                         VStack(spacing: 12) {
                             Button(action: {
-                                // Default alarm radius: cycle 250m, 500m, 1000m
+                                // Default alarm radius: cycle 250m, 500m, 1000m with enhanced logging
                                 let current = viewModel.defaultAlarmRadius
                                 let next = (current == 250) ? 500 : (current == 500 ? 1000 : 250)
+                                
+                                print("🔔 Default alarm radius changed:")
+                                print("   Previous: \(current)m")
+                                print("   New: \(next)m")
+                                
                                 viewModel.defaultAlarmRadius = next
-                                UserDefaults.standard.set(
-                                    Double(next), forKey: "defaultAlarmRadiusMeters")
+                                
+                                // Save to UserDefaults for persistence
+                                UserDefaults.standard.set(Double(next), forKey: "defaultAlarmRadiusMeters")
+                                print("💾 Alarm radius saved to UserDefaults: \(next)m")
+                                
+                                // Notify listeners that alarm distance changed
                                 NotificationCenter.default.post(
                                     name: .alarmDistanceChanged, object: nil,
-                                    userInfo: ["radius": Double(next)])
+                                    userInfo: ["radius": Double(next), "previousRadius": Double(current)])
+                                
+                                print("✅ Alarm radius notification posted")
                             }) {
                                 HStack {
                                     Image(systemName: "circle.dashed")
@@ -394,9 +437,15 @@ struct SettingsView: View {
                             .buttonStyle(SettingsButtonStyle())
 
                             Button(action: {
-                                // Reset overlays button
+                                // Reset overlays button with enhanced logging
+                                print("🗺️ Reset map overlays requested")
+                                print("   This will clear all map annotations, polylines, and circles")
+                                
+                                // Notify listeners to reset map overlays
                                 NotificationCenter.default.post(
                                     name: .resetMapOverlays, object: nil)
+                                
+                                print("✅ Reset map overlays notification posted")
                             }) {
                                 HStack {
                                     Image(systemName: "arrow.counterclockwise.circle.fill")
