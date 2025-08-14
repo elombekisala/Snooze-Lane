@@ -270,13 +270,13 @@ class LoginViewModel: ObservableObject {
     // Country code mapping for region detection
     private let countries: [String: String] = [
         "US": "1", "CA": "1", "MX": "52", "GB": "44", "DE": "49", "FR": "33", "IT": "39",
-        "ES": "34", "AU": "61", "JP": "81", "CN": "86", "IN": "91", "BR": "55", "RU": "7", 
+        "ES": "34", "AU": "61", "JP": "81", "CN": "86", "IN": "91", "BR": "55", "RU": "7",
         "KR": "82", "AR": "54", "CL": "56", "CO": "57", "PE": "51", "VE": "58", "EC": "593",
-        "BO": "591", "PY": "595", "UY": "598", "GY": "592", "SR": "597", "GF": "594", 
-        "FK": "500", "GS": "500", "TC": "1", "VG": "1", "VI": "1", "PR": "1", "DO": "1", 
-        "HT": "509", "JM": "1", "BB": "1", "TT": "1", "GD": "1", "LC": "1", "VC": "1", 
-        "AG": "1", "KN": "1", "DM": "1", "MS": "1", "AW": "297", "CW": "599", "SX": "1", 
-        "BQ": "599", "AI": "1", "BM": "1", "IO": "246", "KY": "1"
+        "BO": "591", "PY": "595", "UY": "598", "GY": "592", "SR": "597", "GF": "594",
+        "FK": "500", "GS": "500", "TC": "1", "VG": "1", "VI": "1", "PR": "1", "DO": "1",
+        "HT": "509", "JM": "1", "BB": "1", "TT": "1", "GD": "1", "LC": "1", "VC": "1",
+        "AG": "1", "KN": "1", "DM": "1", "MS": "1", "AW": "297", "CW": "599", "SX": "1",
+        "BQ": "599", "AI": "1", "BM": "1", "IO": "246", "KY": "1",
     ]
 
     // Computed property for filtered countries based on search
@@ -370,19 +370,31 @@ class LoginViewModel: ObservableObject {
     func verifyCode() {
         loading = true
 
-        #if targetEnvironment(simulator)
+                #if targetEnvironment(simulator)
             // For simulator testing
             if code == testVerificationCode {
                 print("🧪 Simulator: Test verification code accepted")
+                print("📱 Using configured test phone number: \(self.fullPhoneNumber)")
                 
-                // Create a test user using Firebase Auth (this handles permissions properly)
-                let testEmail = "test-\(UUID().uuidString)@snoozelane.test"
-                let testPassword = "testPassword123"
+                // For simulator, we'll simulate a successful phone authentication
+                // Since you've already configured the test phone number in Firebase
+                print("✅ Simulator: Simulating successful phone authentication")
                 
-                Auth.auth().createUser(withEmail: testEmail, password: testPassword) { [weak self] result, error in
+                // Create a test user document in Firestore with a simulated UID
+                let testUID = "simulator-\(UUID().uuidString)"
+                let db = Firestore.firestore()
+                let userRef = db.collection("Users").document(testUID)
+                
+                userRef.setData([
+                    "phoneNumber": self.fullPhoneNumber,
+                    "CallCount": 0,
+                    "createdAt": FieldValue.serverTimestamp(),
+                    "isSimulatorUser": true,
+                    "simulatorUID": testUID
+                ]) { [weak self] error in
                     if let error = error {
-                        print("❌ Error creating test user: \(error.localizedDescription)")
-                        self?.errorMsg = "Error creating test user: \(error.localizedDescription)"
+                        print("❌ Error creating Firestore document: \(error.localizedDescription)")
+                        self?.errorMsg = "Error creating user profile: \(error.localizedDescription)"
                         withAnimation {
                             self?.error.toggle()
                             self?.loading = false
@@ -390,49 +402,16 @@ class LoginViewModel: ObservableObject {
                         return
                     }
                     
-                    guard let user = result?.user else {
-                        print("❌ No user returned from createUser")
-                        self?.errorMsg = "No user returned from createUser"
-                        withAnimation {
-                            self?.error.toggle()
-                            self?.loading = false
-                        }
-                        return
+                    print("✅ Firestore document created successfully")
+                    
+                    // Successfully created test user
+                    withAnimation {
+                        self?.status = true
+                        self?.loading = false
                     }
                     
-                    print("✅ Test user created successfully: \(user.uid)")
-                    
-                    // Now create the Firestore document using the authenticated user
-                    let db = Firestore.firestore()
-                    let userRef = db.collection("Users").document(user.uid)
-                    
-                    userRef.setData([
-                        "phoneNumber": self?.fullPhoneNumber ?? "unknown",
-                        "CallCount": 0,
-                        "createdAt": FieldValue.serverTimestamp(),
-                        "isSimulatorUser": true,
-                        "email": testEmail
-                    ]) { error in
-                        if let error = error {
-                            print("❌ Error creating Firestore document: \(error.localizedDescription)")
-                            self?.errorMsg = "Error creating user profile: \(error.localizedDescription)"
-                            withAnimation {
-                                self?.error.toggle()
-                                self?.loading = false
-                            }
-                            return
-                        }
-                        
-                        print("✅ Firestore document created successfully")
-                        
-                        // Successfully created test user
-                        withAnimation {
-                            self?.status = true
-                            self?.loading = false
-                        }
-                        
-                        print("✅ Simulator test user created successfully with phone: \(self?.fullPhoneNumber ?? "unknown")")
-                    }
+                    print("✅ Simulator test user created successfully with phone: \(self?.fullPhoneNumber ?? "unknown")")
+                    print("✅ User logged in successfully in simulator")
                 }
             } else {
                 self.errorMsg = "Invalid verification code. Use: \(testVerificationCode)"
