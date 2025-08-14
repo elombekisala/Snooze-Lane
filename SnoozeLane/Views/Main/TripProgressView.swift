@@ -143,41 +143,23 @@ struct TripProgressView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
                     if tripCompleted {
-                        HStack(spacing: 12) {
-                            Button {
-                                print("🧪 TESTING CALL FUNCTION")
-                                progressViewModel.testCallFunction()
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "phone.fill")
-                                        .foregroundColor(.white)
-                                    Text("TEST CALL")
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white)
-                                }
-                                .frame(height: 50)
-                                .background(Color.blue)
-                                .cornerRadius(10)
+                        Button {
+                            print("🔄 STARTING NEW TRIP")
+                            progressViewModel.startNewTrip()
+                            locationViewModel.selectedSnoozeLaneLocation = nil  // Clear destination marker and overlays
+                            mapState = .noInput
+                            print("✅ TRIP RESET COMPLETE")
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundColor(.white)
+                                Text("START NEW TRIP")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
                             }
-                            
-                            Button {
-                                print("🔄 STARTING NEW TRIP")
-                                progressViewModel.startNewTrip()
-                                locationViewModel.selectedSnoozeLaneLocation = nil  // Clear destination marker and overlays
-                                mapState = .noInput
-                                print("✅ TRIP RESET COMPLETE")
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "arrow.clockwise")
-                                        .foregroundColor(.white)
-                                    Text("START NEW TRIP")
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white)
-                                }
-                                .frame(height: 50)
-                                .background(Color.green)
-                                .cornerRadius(10)
-                            }
+                            .frame(height: 50)
+                            .background(Color.green)
+                            .cornerRadius(10)
                         }
                         .padding(.horizontal)
                         .padding(.bottom, 10)

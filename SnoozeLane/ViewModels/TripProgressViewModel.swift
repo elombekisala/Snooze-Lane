@@ -42,7 +42,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
 
     init(locationViewModel: LocationSearchViewModel) {
         self.locationViewModel = locationViewModel
-        
+
         // Initialize with default values from UserDefaults
         let savedRadius = UserDefaults.standard.double(forKey: "defaultAlarmRadiusMeters")
         if savedRadius > 0 {
@@ -57,7 +57,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
 
         self.setupLocationUpdates()
         self.authorizeNotification()
-        
+
         // Listen for alarm distance changes from settings
         NotificationCenter.default.addObserver(
             forName: .alarmDistanceChanged,
@@ -69,7 +69,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                 print("🔔 Alarm distance threshold updated to: \(radius)m")
             }
         }
-        
+
         print("Initial status of callMade: \(callMade)")
     }
 
@@ -104,7 +104,9 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
 
     func setDestination(_ destination: CLLocation) {
         self.destination = destination
-        print("🎯 Destination set in TripProgressViewModel: \(destination.coordinate.latitude), \(destination.coordinate.longitude)")
+        print(
+            "🎯 Destination set in TripProgressViewModel: \(destination.coordinate.latitude), \(destination.coordinate.longitude)"
+        )
     }
 
     private func setupLocationUpdates() {
@@ -140,16 +142,20 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
     func startTrip() {
         print("🚀 START TRIP FUNCTION CALLED.")
         initialLocation = currentLocation
-        
+
         // Set the destination from the selected location
         if let selectedLocation = locationViewModel.selectedSnoozeLaneLocation {
             let destinationCoordinate = selectedLocation.coordinate
-            destination = CLLocation(latitude: destinationCoordinate.latitude, longitude: destinationCoordinate.longitude)
-            print("🎯 Destination set for trip: \(destinationCoordinate.latitude), \(destinationCoordinate.longitude)")
+            destination = CLLocation(
+                latitude: destinationCoordinate.latitude, longitude: destinationCoordinate.longitude
+            )
+            print(
+                "🎯 Destination set for trip: \(destinationCoordinate.latitude), \(destinationCoordinate.longitude)"
+            )
         } else {
             print("⚠️ No destination selected for trip")
         }
-        
+
         isStarted = true
         locationManager.startUpdatingLocation()
     }
@@ -233,12 +239,14 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         }
 
         print("📞 Initiating call function (attempt \(retryCount + 1))")
-        print("📞 Current state - callMade: \(callMade), hasReachedDestination: \(hasReachedDestination)")
+        print(
+            "📞 Current state - callMade: \(callMade), hasReachedDestination: \(hasReachedDestination)"
+        )
         callInProgress = true
 
         let functions = Functions.functions()
         print("📞 Calling Firebase function 'makeCallOnTrigger'...")
-        
+
         functions.httpsCallable("makeCallOnTrigger").call { result, error in
             self.callInProgress = false
             if let error = error {
@@ -331,26 +339,12 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         // Clear map overlays
         NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
     }
-    
-    // MARK: - Debug/Testing Methods
-    func testCallFunction() {
-        print("🧪 Testing call function...")
-        if !callMade {
-            triggerCall()
-        } else {
-            print("🧪 Call already made, resetting for test...")
-            callMade = false
-            triggerCall()
-        }
-    }
-    
-    func updateAlarmDistanceThreshold(_ newRadius: Double) {
+
+        func updateAlarmDistanceThreshold(_ newRadius: Double) {
         print("🔔 Manually updating alarm distance threshold to: \(newRadius)m")
         alarmDistanceThreshold = newRadius
         print("✅ Alarm distance threshold updated")
     }
-    
-
 
     private func cancelDestinationNotification() {
         let center = UNUserNotificationCenter.current()
@@ -358,32 +352,40 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             "BannerNotification", "AlertNotification",
         ])
     }
-    
+
     // MARK: - Threshold Detection
     func checkThresholdReached(distance: Double) {
         print("🔍 checkThresholdReached called with distance: \(distance)m")
-        print("🔍 Current state - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)")
-        
-        guard !hasReachedDestination, let destination = destination else { 
-            print("⚠️ Threshold check guard failed - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)")
-            return 
+        print(
+            "🔍 Current state - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)"
+        )
+
+        guard !hasReachedDestination, let destination = destination else {
+            print(
+                "⚠️ Threshold check guard failed - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)"
+            )
+            return
         }
-        
-        print("🎯 Destination coordinates: \(destination.coordinate.latitude), \(destination.coordinate.longitude)")
-        
+
+        print(
+            "🎯 Destination coordinates: \(destination.coordinate.latitude), \(destination.coordinate.longitude)"
+        )
+
         print("🎯 Threshold check - Distance: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
-        
+
         if distance <= alarmDistanceThreshold {
-            print("🎯 Distance threshold reached! Current: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
-            
+            print(
+                "🎯 Distance threshold reached! Current: \(distance)m, Threshold: \(alarmDistanceThreshold)m"
+            )
+
             // Only trigger if we haven't already reached destination
             if !hasReachedDestination {
                 hasReachedDestination = true
                 print("📞 Triggering call function...")
-                
+
                 // Trigger notification and call
                 triggerNotification()
-                
+
                 if !callMade {
                     print("📞 Call not yet made, triggering call function...")
                     print("📞 FIREBASE FUNCTION WILL BE CALLED NOW!")
@@ -391,14 +393,14 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                 } else {
                     print("📞 Call already made, skipping...")
                 }
-                
+
                 // Stop location updates and clear map
                 locationManager.stopUpdatingLocation()
                 isStarted = false
-                
+
                 // Clear map overlays
                 NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
-                
+
                 // Update UI state to show completion
                 DispatchQueue.main.async {
                     self.hasReachedDestination = true
