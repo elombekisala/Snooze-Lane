@@ -42,12 +42,34 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
 
     init(locationViewModel: LocationSearchViewModel) {
         self.locationViewModel = locationViewModel
-        self.alarmDistanceThreshold = 482.81  // Default to 0.3 miles if not set
+        
+        // Initialize with default values from UserDefaults
+        let savedRadius = UserDefaults.standard.double(forKey: "defaultAlarmRadiusMeters")
+        if savedRadius > 0 {
+            self.alarmDistanceThreshold = savedRadius
+            print("🚀 TripProgressViewModel initialized - Alarm radius loaded: \(savedRadius)m")
+        } else {
+            self.alarmDistanceThreshold = 500  // Default to 500m if not set
+            print("🚀 TripProgressViewModel initialized - Alarm radius set to default: 500m")
+        }
 
         super.init()
 
         self.setupLocationUpdates()
         self.authorizeNotification()
+        
+        // Listen for alarm distance changes from settings
+        NotificationCenter.default.addObserver(
+            forName: .alarmDistanceChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let radius = notification.userInfo?["radius"] as? Double {
+                self?.alarmDistanceThreshold = radius
+                print("🔔 Alarm distance threshold updated to: \(radius)m")
+            }
+        }
+        
         print("Initial status of callMade: \(callMade)")
     }
 
@@ -305,6 +327,12 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             callMade = false
             triggerCall()
         }
+    }
+    
+    func updateAlarmDistanceThreshold(_ newRadius: Double) {
+        print("🔔 Manually updating alarm distance threshold to: \(newRadius)m")
+        alarmDistanceThreshold = newRadius
+        print("✅ Alarm distance threshold updated")
     }
 
     private func cancelDestinationNotification() {
