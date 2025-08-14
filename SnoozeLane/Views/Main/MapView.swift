@@ -224,6 +224,25 @@ struct MapView: View {
             // Top Controls - Pinned to top right (State-based visibility)
             if mapState.shouldShowTopControls {
                 VStack(spacing: 12) {
+                    // Cancel Button - Only show when location is selected
+                    if mapState == .locationSelected || mapState == .polylineAdded {
+                        Button(action: {
+                            cancelSelectedLocation()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.red)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(Color.white)
+                                        .shadow(
+                                            color: .red.opacity(0.3), radius: 4, x: 0, y: 2)
+                                )
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                    
                     // Map Type Button
                     Button(action: {
                         cycleMapType()
@@ -664,6 +683,17 @@ struct MapView: View {
 
         // Stop location updates
         stopLocationUpdateTimer()
+    }
+    
+    private func cancelSelectedLocation() {
+        // Clear the selected destination and reset map state
+        clearDestination()
+        
+        // Provide haptic feedback
+        provideHapticFeedback()
+        
+        // Print confirmation
+        print("✅ Selected location cancelled successfully")
     }
 
     private func updatePolylineCoordinates() {
