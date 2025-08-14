@@ -104,6 +104,7 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
 
     func setDestination(_ destination: CLLocation) {
         self.destination = destination
+        print("🎯 Destination set in TripProgressViewModel: \(destination.coordinate.latitude), \(destination.coordinate.longitude)")
     }
 
     private func setupLocationUpdates() {
@@ -139,6 +140,16 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
     func startTrip() {
         print("🚀 START TRIP FUNCTION CALLED.")
         initialLocation = currentLocation
+        
+        // Set the destination from the selected location
+        if let selectedLocation = locationViewModel.selectedSnoozeLaneLocation {
+            let destinationCoordinate = selectedLocation.coordinate
+            destination = CLLocation(latitude: destinationCoordinate.latitude, longitude: destinationCoordinate.longitude)
+            print("🎯 Destination set for trip: \(destinationCoordinate.latitude), \(destinationCoordinate.longitude)")
+        } else {
+            print("⚠️ No destination selected for trip")
+        }
+        
         isStarted = true
         locationManager.startUpdatingLocation()
     }
@@ -334,6 +345,8 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         alarmDistanceThreshold = newRadius
         print("✅ Alarm distance threshold updated")
     }
+    
+
 
     private func cancelDestinationNotification() {
         let center = UNUserNotificationCenter.current()
@@ -344,6 +357,9 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
     
     // MARK: - Threshold Detection
     func checkThresholdReached(distance: Double) {
+        print("🔍 checkThresholdReached called with distance: \(distance)m")
+        print("🔍 Current state - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)")
+        
         guard !hasReachedDestination, let destination = destination else { 
             print("⚠️ Threshold check guard failed - hasReachedDestination: \(hasReachedDestination), destination: \(destination != nil)")
             return 
