@@ -21,7 +21,7 @@ class SettingsViewModel: ObservableObject {
     @Published var units: String = "Miles"
     @Published var defaultAlarmRadius: Int = 500
     @Published var callTiming: String = "Immediate"
-    
+
     private var observer: NSObjectProtocol?
     private let notificationCenter = NotificationCenter.default
     private let db = Firestore.firestore()
@@ -162,7 +162,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Backup contacts action
@@ -191,7 +191,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Toggle dark mode for modals
@@ -235,7 +235,8 @@ struct SettingsView: View {
 
                             Button(action: {
                                 // Location permissions prompt
-                                NotificationCenter.default.post(name: .requestLocationPermission, object: nil)
+                                NotificationCenter.default.post(
+                                    name: .requestLocationPermission, object: nil)
                             }) {
                                 HStack {
                                     Image(systemName: "location.circle.fill")
@@ -261,7 +262,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Map type selection -> cycle through types via notification
@@ -277,7 +278,9 @@ struct SettingsView: View {
                                     next = .standard
                                     viewModel.selectedMapType = "Standard"
                                 }
-                                NotificationCenter.default.post(name: .mapTypeChanged, object: nil, userInfo: ["mapType": next.rawValue])
+                                NotificationCenter.default.post(
+                                    name: .mapTypeChanged, object: nil,
+                                    userInfo: ["mapType": next.rawValue])
                             }) {
                                 HStack {
                                     Image(systemName: "map.fill")
@@ -300,7 +303,9 @@ struct SettingsView: View {
                             Button(action: {
                                 // Traffic display (toggled via notification)
                                 viewModel.showTraffic.toggle()
-                                NotificationCenter.default.post(name: .trafficToggled, object: nil, userInfo: ["enabled": viewModel.showTraffic])
+                                NotificationCenter.default.post(
+                                    name: .trafficToggled, object: nil,
+                                    userInfo: ["enabled": viewModel.showTraffic])
                             }) {
                                 HStack {
                                     Image(systemName: "car.fill")
@@ -325,7 +330,9 @@ struct SettingsView: View {
                                 useMetricUnits.toggle()
                                 viewModel.units = useMetricUnits ? "Kilometers" : "Miles"
                                 // Notify listeners that units changed
-                                NotificationCenter.default.post(name: .unitsPreferenceChanged, object: nil, userInfo: ["useMetricUnits": useMetricUnits])
+                                NotificationCenter.default.post(
+                                    name: .unitsPreferenceChanged, object: nil,
+                                    userInfo: ["useMetricUnits": useMetricUnits])
                             }) {
                                 HStack {
                                     Image(systemName: "ruler.fill")
@@ -354,23 +361,26 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Default alarm radius: cycle 250m, 500m, 1000m
                                 let current = viewModel.defaultAlarmRadius
                                 let next = (current == 250) ? 500 : (current == 500 ? 1000 : 250)
                                 viewModel.defaultAlarmRadius = next
-                                UserDefaults.standard.set(Double(next), forKey: "defaultAlarmRadiusMeters")
-                                NotificationCenter.default.post(name: .alarmDistanceChanged, object: nil, userInfo: ["radius": Double(next)])
+                                UserDefaults.standard.set(
+                                    Double(next), forKey: "defaultAlarmRadiusMeters")
+                                NotificationCenter.default.post(
+                                    name: .alarmDistanceChanged, object: nil,
+                                    userInfo: ["radius": Double(next)])
                             }) {
                                 HStack {
                                     Image(systemName: "circle.dashed")
                                         .font(.title2)
                                         .foregroundColor(.white)
                                     Text("Default Alarm Radius")
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
                                     Spacer()
                                     Text("\(viewModel.defaultAlarmRadius)m")
                                         .font(.caption)
@@ -405,7 +415,8 @@ struct SettingsView: View {
 
                             Button(action: {
                                 // Reset overlays button
-                                NotificationCenter.default.post(name: .resetMapOverlays, object: nil)
+                                NotificationCenter.default.post(
+                                    name: .resetMapOverlays, object: nil)
                             }) {
                                 HStack {
                                     Image(systemName: "arrow.counterclockwise.circle.fill")
@@ -449,7 +460,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Clear app data
@@ -514,7 +525,7 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.horizontal)
-                        
+
                         VStack(spacing: 12) {
                             Button(action: {
                                 // Help center
@@ -578,9 +589,10 @@ struct SettingsView: View {
             .background(Color.black)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
-            .navigationBarItems(trailing: Button("Done") {
-                dismiss()
-            })
+            .navigationBarItems(
+                trailing: Button("Done") {
+                    dismiss()
+                })
         }
         .background(Color.black)
     }
@@ -726,8 +738,7 @@ struct SettingsButtonStyle: ButtonStyle {
             .padding()
             .frame(maxWidth: .infinity)
             .background(
-                isDestructive ? Color.red.opacity(0.8) : 
-                Color.gray.opacity(0.2)
+                isDestructive ? Color.red.opacity(0.8) : Color.gray.opacity(0.2)
             )
             .foregroundColor(.white)
             .cornerRadius(12)
