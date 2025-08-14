@@ -264,7 +264,15 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
                 print("✅ Firebase function call succeeded!")
                 print("✅ Result data: \(result?.data ?? "No data")")
                 self.callMade = true
+                
+                // Log trip completion and increment call count
+                self.logTripCompletion()
                 self.incrementCallCount()
+                
+                // Notify that trip is completed
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .tripCompleted, object: nil)
+                }
             }
         }
     }
@@ -295,15 +303,76 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
 
             transaction.updateData(["CallCount": oldCallCount + 1], forDocument: userRef)
             return nil
-        }) { (object, error) in
+        }) { [weak self] (object, error) in
             if let error = error {
                 print("Transaction failed: \(error)")
             } else {
                 print("Transaction successfully committed!")
+                
+                // Post notification with updated call count
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: .callCountUpdated,
+                        object: nil,
+                        userInfo: ["count": (self?.getCurrentCallCount() ?? 0) + 1]
+                    )
+                }
             }
         }
     }
-
+    
+    func logTripCompletion() {
+        guard let userID = Auth.auth().currentUser?.uid else { 
+            print("❌ Cannot log trip completion: User not logged in")
+            return 
+        }
+        
+        let userRef = Firestore.firestore().collection("Users").document(userID)
+        let tripData: [String: Any] = [
+            "TripID": UUID().uuidString,
+            "StartTime": initialLocation?.timestamp ?? Date(),
+            "EndTime": Date(),
+            "Destination": [
+                "latitude": destination?.coordinate.latitude ?? 0.0,
+                "longitude": destination?.coordinate.longitude ?? 0.0
+            ],
+            "Distance": distance,
+            "CallTriggered": true,
+            "CallTime": Date(),
+            "Status": "completed"
+        ]
+        
+        // Add trip to user's trip history
+        let tripRef = userRef.collection("Trips").document()
+        
+        tripRef.setData(tripData) { error in
+            if let error = error {
+                print("❌ Error logging trip completion: \(error.localizedDescription)")
+            } else {
+                print("✅ Trip completion logged successfully")
+                print("📊 Trip data: \(tripData)")
+            }
+                }
+    }
+    
+    func getCurrentCallCount() -> Int {
+        guard let userID = Auth.auth().currentUser?.uid else { return 0 }
+        let userRef = Firestore.firestore().collection("Users").document(userID)
+        
+        var currentCount = 0
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        userRef.getDocument { document, error in
+            if let document = document, document.exists {
+                currentCount = document.data()?["CallCount"] as? Int ?? 0
+            }
+            semaphore.signal()
+        }
+        
+        semaphore.wait()
+        return currentCount
+    }
+    
     func stopTrip() {
         isStarted = false
         callMade = false
@@ -388,18 +457,18 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
             if !callMade {
                 print("📞 Call not yet made, triggering call function...")
                 print("📞 FIREBASE FUNCTION WILL BE CALLED NOW!")
-                
+
                 // Mark that we've reached the destination
                 hasReachedDestination = true
-                
+
                 // Trigger notification and call
                 triggerNotification()
                 triggerCall()
-                
+
                 // Don't stop the trip yet - let it continue monitoring
                 // The user might move in and out of the threshold
                 print("📞 Firebase function triggered, continuing to monitor...")
-                
+
             } else if callInProgress {
                 print("📞 Call already in progress, waiting...")
             } else {

@@ -23,6 +23,7 @@ class SettingsViewModel: ObservableObject {
     @Published var callTiming: String = "Immediate"
 
     private var observer: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
     private let notificationCenter = NotificationCenter.default
     private let db = Firestore.firestore()
     private let logger = Logger(subsystem: "com.snoozelane.app", category: "Settings")
@@ -66,9 +67,11 @@ class SettingsViewModel: ObservableObject {
     }
 
     deinit {
-        if let observer = observer {
+        // Remove all observers
+        for observer in observers {
             notificationCenter.removeObserver(observer)
         }
+        observers.removeAll()
     }
 
     private func isUserLoggedIn() -> Bool {
@@ -81,7 +84,9 @@ class SettingsViewModel: ObservableObject {
     }
 
     private func setupObserver() {
-        logger.debug("🔄 Setting up call count observer")
+        logger.debug("🔄 Setting up call count and trip completion observers")
+        
+        // Observer for call count updates
         observer = notificationCenter.addObserver(
             forName: .callCountUpdated,
             object: nil,
@@ -92,6 +97,20 @@ class SettingsViewModel: ObservableObject {
                 self?.callCount = newCount
             }
         }
+        
+        // Observer for trip completion - refresh call count when trip completes
+        let tripObserver = notificationCenter.addObserver(
+            forName: .tripCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.logger.notice("🎯 Trip completed, refreshing call count...")
+            self?.fetchCallCount()
+        }
+        
+        // Store both observers
+        observers.append(observer)
+        observers.append(tripObserver)
     }
 
     func fetchCallCount() {

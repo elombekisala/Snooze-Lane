@@ -26,4 +26,5 @@ extension Notification.Name {
     static let requestLocationPermission = Notification.Name("requestLocationPermission")
     static let resetMapOverlays = Notification.Name("resetMapOverlays")
     static let updateTrafficVisibility = Notification.Name("updateTrafficVisibility")
+    static let tripCompleted = Notification.Name("tripCompleted")
 }
