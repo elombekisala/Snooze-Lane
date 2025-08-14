@@ -2,6 +2,7 @@ import Contacts
 import ContactsUI
 import Firebase
 import LinkPresentation
+import MapKit
 import SwiftUI
 import UIKit
 import os.log

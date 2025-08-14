@@ -349,7 +349,8 @@ struct MapView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .trafficToggled)) { notif in
             if let enabled = notif.userInfo?["enabled"] as? Bool {
-                NotificationCenter.default.post(name: .updateTrafficVisibility, object: nil, userInfo: ["enabled": enabled])
+                NotificationCenter.default.post(
+                    name: .updateTrafficVisibility, object: nil, userInfo: ["enabled": enabled])
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .requestLocationPermission)) { _ in
