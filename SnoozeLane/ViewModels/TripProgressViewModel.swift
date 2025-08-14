@@ -144,32 +144,10 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         // Ensure the progress is within the range of 0 to 1
         progress = max(0, min(progress, 1))
 
-        // Avoid triggering again if destination is reached
+        // Progress calculation only - threshold detection is handled by checkThresholdReached
+        // This prevents duplicate call triggering
         if currentDistance <= alarmDistanceThreshold && !hasReachedDestination {
-            print(
-                "🎯 Distance threshold reached! Current: \(currentDistance)m, Threshold: \(alarmDistanceThreshold)m"
-            )
-            hasReachedDestination = true
-            print("Reached destination, triggering notification and call")
-
-            // Trigger notification and call
-            triggerNotification()
-
-            if !callMade {
-                triggerCall()
-            }
-
-            // Stop location updates and clear map
-            locationManager.stopUpdatingLocation()
-            isStarted = false
-
-            // Clear map overlays
-            NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
-
-            // Update UI state to show completion
-            DispatchQueue.main.async {
-                self.tripCompleted = true
-            }
+            print("📍 Progress update: Within threshold but not yet processed")
         }
     }
 
@@ -217,24 +195,29 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
 
     func triggerCall(retryCount: Int = 0) {
         guard !callInProgress else {
-            print("Call already in progress")
+            print("📞 Call already in progress, skipping...")
             return
         }
 
+        print("📞 Initiating call function (attempt \(retryCount + 1))")
         callInProgress = true
 
         let functions = Functions.functions()
+        print("📞 Calling Firebase function 'makeCallOnTrigger'...")
         functions.httpsCallable("makeCallOnTrigger").call { result, error in
             self.callInProgress = false
             if let error = error {
-                print("Error calling function: \(error.localizedDescription)")
+                print("❌ Error calling function: \(error.localizedDescription)")
                 if retryCount < 3 {  // Retry logic with up to 3 retries
+                    print("📞 Retrying call in 2 seconds... (attempt \(retryCount + 2))")
                     DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
                         self.triggerCall(retryCount: retryCount + 1)
                     }
+                } else {
+                    print("❌ Call failed after \(retryCount + 1) attempts")
                 }
             } else {
-                print("Call succeeded, result: \(result?.data ?? "No data")")
+                print("✅ Call succeeded, result: \(result?.data ?? "No data")")
                 self.callMade = true
                 self.incrementCallCount()
             }
@@ -311,11 +294,57 @@ final class TripProgressViewModel: NSObject, ObservableObject, UNUserNotificatio
         // Clear map overlays
         NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
     }
+    
+    // MARK: - Debug/Testing Methods
+    func testCallFunction() {
+        print("🧪 Testing call function...")
+        if !callMade {
+            triggerCall()
+        } else {
+            print("🧪 Call already made, resetting for test...")
+            callMade = false
+            triggerCall()
+        }
+    }
 
     private func cancelDestinationNotification() {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [
             "BannerNotification", "AlertNotification",
         ])
+    }
+    
+    // MARK: - Threshold Detection
+    func checkThresholdReached(distance: Double) {
+        guard !hasReachedDestination, let destination = destination else { return }
+        
+        print("🎯 Threshold check - Distance: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
+        
+        if distance <= alarmDistanceThreshold {
+            print("🎯 Distance threshold reached! Current: \(distance)m, Threshold: \(alarmDistanceThreshold)m")
+            hasReachedDestination = true
+            
+            // Trigger notification and call
+            triggerNotification()
+            
+            if !callMade {
+                print("📞 Triggering call function...")
+                triggerCall()
+            } else {
+                print("📞 Call already made, skipping...")
+            }
+            
+            // Stop location updates and clear map
+            locationManager.stopUpdatingLocation()
+            isStarted = false
+            
+            // Clear map overlays
+            NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
+            
+            // Update UI state to show completion
+            DispatchQueue.main.async {
+                self.tripCompleted = true
+            }
+        }
     }
 }

@@ -179,24 +179,24 @@ struct TripProgressView: View {
             print("🔄 hasReachedDestination changed to: \(reachedDestination)")
             if reachedDestination {
                 print("🎯 TRIP COMPLETED: DESTINATION REACHED")
-                progressViewModel.triggerNotification()
                 tripCompleted = true
-                print("🔔 NOTIFICATION TRIGGERED")
+                print("🔔 NOTIFICATION AND CALL TRIGGERED")
                 // Clear map overlays when trip is completed
                 NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
             }
         }
         .onChange(of: progressViewModel.distance) { distance in
-            // Check if user is within threshold and update trip completion
+            // Check if user is within threshold and trigger call function
             if distance <= progressViewModel.alarmDistanceThreshold && !tripCompleted
                 && progressViewModel.isStarted
             {
                 print(
                     "🎯 WITHIN THRESHOLD: Distance \(distance)m, Threshold \(progressViewModel.alarmDistanceThreshold)m"
                 )
-                progressViewModel.triggerNotification()
+                // Let the ViewModel handle the threshold detection and call triggering
+                progressViewModel.checkThresholdReached(distance: distance)
                 tripCompleted = true
-                print("🔔 ARRIVAL NOTIFICATION TRIGGERED")
+                print("🔔 ARRIVAL THRESHOLD REACHED - CALL FUNCTION TRIGGERED")
                 NotificationCenter.default.post(name: .clearMapOverlays, object: nil)
             } else if distance > progressViewModel.alarmDistanceThreshold && tripCompleted && progressViewModel.isStarted {
                 // User moved outside threshold - reset trip completion
