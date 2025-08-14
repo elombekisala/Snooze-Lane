@@ -46,7 +46,8 @@ struct MapView: View {
     @State private var showMapControls = true
     @State private var showSettings = false
     @State private var mapType: MKMapType = .standard
-    @State private var useDarkMapStyle: Bool = UserDefaults.standard.object(forKey: "useDarkMapStyle") as? Bool ?? true
+    @State private var useDarkMapStyle: Bool =
+        UserDefaults.standard.object(forKey: "useDarkMapStyle") as? Bool ?? true
 
     // Navigation state
     @State private var selectedDestination: CLLocationCoordinate2D?
@@ -297,12 +298,13 @@ struct MapView: View {
                                 Circle()
                                     .fill(Color.white)
                                     .shadow(
-                                        color: (useDarkMapStyle ? Color.purple : Color.orange).opacity(0.3), radius: 4, x: 0,
+                                        color: (useDarkMapStyle ? Color.purple : Color.orange)
+                                            .opacity(0.3), radius: 4, x: 0,
                                         y: 2)
                             )
                     }
                     .transition(.scale.combined(with: .opacity))
-                    
+
                     // Settings Button
                     Button(action: {
                         showSettings = true

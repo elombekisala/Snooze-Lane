@@ -34,10 +34,12 @@ struct MapViewRepresentable: UIViewRepresentable {
         let config = MKStandardMapConfiguration()
         config.emphasisStyle = useDarkMapStyle ? .muted : .default
         config.showsTraffic = false
-        
+
         // Apply dark theme styling
         if useDarkMapStyle {
-            config.pointOfInterestFilter = MKPointOfInterestFilter(excluding: [.airport, .bank, .hospital, .school])
+            config.pointOfInterestFilter = MKPointOfInterestFilter(excluding: [
+                .airport, .bank, .hospital, .school,
+            ])
             mapView.tintColor = .orange
             mapView.overrideUserInterfaceStyle = .dark
         } else {
@@ -84,7 +86,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         if uiView.mapType != mapType {
             uiView.mapType = mapType
         }
-        
+
         // Update dark style if changed
         if uiView.overrideUserInterfaceStyle != (useDarkMapStyle ? .dark : .light) {
             uiView.overrideUserInterfaceStyle = useDarkMapStyle ? .dark : .light
