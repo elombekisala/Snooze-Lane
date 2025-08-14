@@ -49,6 +49,18 @@ class SettingsViewModel: ObservableObject {
             print("🔔 SettingsViewModel initialized - Default alarm radius set to default: \(defaultAlarmRadius)m")
         }
         
+        // Load map type preference
+        let savedMapType = UserDefaults.standard.string(forKey: "selectedMapType")
+        if let savedMapType = savedMapType {
+            selectedMapType = savedMapType
+            print("🗺️ SettingsViewModel initialized - Map type loaded: \(selectedMapType)")
+        } else {
+            // Set default if none saved
+            selectedMapType = "Standard"
+            UserDefaults.standard.set(selectedMapType, forKey: "selectedMapType")
+            print("🗺️ SettingsViewModel initialized - Map type set to default: \(selectedMapType)")
+        }
+        
         setupObserver()
         fetchCallCount()
     }
@@ -252,8 +264,10 @@ struct SettingsView: View {
 
                         VStack(spacing: 12) {
                             Button(action: {
-                                // Map type selection -> cycle through types via notification
+                                // Map type selection -> cycle through types with enhanced logging
+                                let previous = viewModel.selectedMapType
                                 let next: MKMapType
+                                
                                 switch viewModel.selectedMapType {
                                 case "Standard":
                                     next = .satellite
@@ -265,9 +279,22 @@ struct SettingsView: View {
                                     next = .standard
                                     viewModel.selectedMapType = "Standard"
                                 }
+                                
+                                print("🗺️ Map type changed:")
+                                print("   Previous: \(previous)")
+                                print("   New: \(viewModel.selectedMapType)")
+                                print("   MKMapType raw value: \(next.rawValue)")
+                                
+                                // Save to UserDefaults for persistence
+                                UserDefaults.standard.set(viewModel.selectedMapType, forKey: "selectedMapType")
+                                print("💾 Map type saved to UserDefaults: \(viewModel.selectedMapType)")
+                                
+                                // Notify listeners that map type changed
                                 NotificationCenter.default.post(
                                     name: .mapTypeChanged, object: nil,
-                                    userInfo: ["mapType": next.rawValue])
+                                    userInfo: ["mapType": next.rawValue, "mapTypeName": viewModel.selectedMapType, "previousMapType": previous])
+                                
+                                print("✅ Map type notification posted")
                             }) {
                                 HStack {
                                     Image(systemName: "map.fill")
