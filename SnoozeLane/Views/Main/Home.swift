@@ -196,12 +196,15 @@ struct Home: View {
                                         subtitle: result.subtitle
                                     )
                                     .onTapGesture {
-                                        // Convert search result to coordinate and set destination
-                                        // Note: MKLocalSearchCompletion doesn't have a direct coordinate property
-                                        // We would need to perform a search to get the actual coordinate
+                                        // Select the location (handles annotation, overlays, and fitting)
                                         print("Search result selected: \(result.title)")
-                                        // For now, just close the modal
-                                        showSearchModal = false
+                                        locationViewModel.selectLocation(result)
+
+                                        // Update map state and close modal
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            mapState = .locationSelected
+                                            showSearchModal = false
+                                        }
                                     }
                                 }
                             }

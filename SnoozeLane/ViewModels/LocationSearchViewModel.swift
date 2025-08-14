@@ -11,10 +11,10 @@ class LocationSearchViewModel: NSObject, ObservableObject {
 
     @Published var results = [MKLocalSearchCompletion]()
     @Published var selectedSnoozeLaneLocation: SnoozeLaneLocation?
-    
+
     // Store coordinates for each search result as they're fetched
     private var resultCoordinates: [String: CLLocationCoordinate2D] = [:]
-    
+
     // Get stored coordinates for a specific search result
     func getCoordinateForResult(_ result: MKLocalSearchCompletion) -> CLLocationCoordinate2D? {
         let resultKey = "\(result.title)_\(result.subtitle)"
@@ -51,6 +51,12 @@ class LocationSearchViewModel: NSObject, ObservableObject {
     private let searchCompleter = MKLocalSearchCompleter()
     private var cancellables: Set<AnyCancellable> = []
 
+    // Throttled coordinate fetching for search results
+    private var activeSearches: [MKLocalSearch] = []
+    private var fetchWorkItems: [DispatchWorkItem] = []
+    private let coordinateFetchQueue = DispatchQueue(
+        label: "com.snoozelane.locationsearch.coordinateFetch", qos: .userInitiated)
+
     private func setupLocationManager() {
         self.locationManager.locationSearchViewModel = self
         self.locationManager.objectWillChange.sink { [weak self] _ in
@@ -60,6 +66,11 @@ class LocationSearchViewModel: NSObject, ObservableObject {
 
     private func setupSearchCompleter() {
         searchCompleter.delegate = self
+        // Reduce noisy results and API load
+        if #available(iOS 13.0, *) {
+            searchCompleter.resultTypes = [.address, .pointOfInterest]
+        }
+        updateCompleterRegion()
     }
 
     // MARK: - Search Management
@@ -122,6 +133,15 @@ class LocationSearchViewModel: NSObject, ObservableObject {
             locationManager.location = CLLocation(
                 latitude: destinationRoute.polyline.coordinate.latitude,
                 longitude: destinationRoute.polyline.coordinate.longitude)
+        }
+    }
+
+    private func updateCompleterRegion() {
+        if let center = locationManager.location?.coordinate {
+            // Focus autocompletion around user's vicinity
+            let span = MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
+            searchCompleter.region = MKCoordinateRegion(center: center, span: span)
+            print("🗺️ Updated search completer region to user location: \(center)")
         }
     }
 
@@ -225,7 +245,7 @@ class LocationSearchViewModel: NSObject, ObservableObject {
             print("✅ Using stored coordinates for '\(localSearch.title)':")
             print("   📍 Lat: \(storedCoordinate.latitude)")
             print("   📍 Lon: \(storedCoordinate.longitude)")
-            
+
             // Create the location directly with stored coordinates
             self.selectedSnoozeLaneLocation = SnoozeLaneLocation(
                 title: localSearch.title,
@@ -233,9 +253,13 @@ class LocationSearchViewModel: NSObject, ObservableObject {
                 coordinate: storedCoordinate,
                 placemark: MKPlacemark(coordinate: storedCoordinate)
             )
-            
-            // Post notification to add destination annotation to the map
+
+            // Trigger the exact same map behavior as long press
             DispatchQueue.main.async {
+                print("🚀 POSTING NOTIFICATIONS TO UPDATE MAP:")
+
+                // Post notification to add destination annotation to the map
+                print("   📍 Posting addDestinationAnnotation notification...")
                 NotificationCenter.default.post(
                     name: .addDestinationAnnotation,
                     object: nil,
@@ -244,8 +268,48 @@ class LocationSearchViewModel: NSObject, ObservableObject {
                         "subtitle": localSearch.subtitle,
                     ]
                 )
+                print("   ✅ addDestinationAnnotation notification posted")
+
+                // Persist the selected location so the map can read it
+                print("🧭 Setting selectedSnoozeLaneLocation before posting notifications")
+                self.selectedSnoozeLaneLocation = SnoozeLaneLocation(
+                    title: localSearch.title,
+                    subtitle: localSearch.subtitle,
+                    coordinate: storedCoordinate,
+                    placemark: MKPlacemark(coordinate: storedCoordinate)
+                )
+
+                // Post notification to update overlays (circle and polyline)
+                print("   📍 Posting updateCircle notification...")
+                NotificationCenter.default.post(
+                    name: .updateCircle,
+                    object: nil,
+                    userInfo: [
+                        "coordinate": storedCoordinate,
+                        "radius": 500.0,  // Default radius, can be adjusted
+                    ]
+                )
+                print("   ✅ updateCircle notification posted")
+
+                // Post notification to fit map to show both user and destination
+                print("   📍 Posting fitMapToUserAndDestination notification...")
+                NotificationCenter.default.post(
+                    name: .fitMapToUserAndDestination,
+                    object: nil
+                )
+                print("   ✅ fitMapToUserAndDestination notification posted")
+
+                // Post notification to update map state to locationSelected
+                print("   📍 Posting locationSelected notification...")
+                NotificationCenter.default.post(
+                    name: .locationSelected,
+                    object: nil
+                )
+                print("   ✅ locationSelected notification posted")
+
+                print("🎯 ALL NOTIFICATIONS POSTED - MAP SHOULD UPDATE NOW")
             }
-            
+
             // Get route if we have current location
             if let currentLocation = self.getCurrentLocation() {
                 let sourceCoordinate = CLLocationCoordinate2D(
@@ -258,7 +322,9 @@ class LocationSearchViewModel: NSObject, ObservableObject {
                 self.getDestinationRoute(from: sourceCoordinate, to: destinationCoordinate) {
                     route, distance, error in
                     if let error = error {
-                        print("DEBUG: Failed to get destination route with error \(error.localizedDescription)")
+                        print(
+                            "DEBUG: Failed to get destination route with error \(error.localizedDescription)"
+                        )
                         return
                     }
                     guard let route = route, let distance = distance else { return }
@@ -268,10 +334,10 @@ class LocationSearchViewModel: NSObject, ObservableObject {
                     self.locationUpdated()
                 }
             }
-            
+
             return
         }
-        
+
         // Fallback: If no stored coordinates, do the search (this shouldn't happen now)
         print("⚠️ No stored coordinates found, falling back to search...")
         let searchRequest = MKLocalSearch.Request(completion: localSearch)
@@ -333,8 +399,12 @@ class LocationSearchViewModel: NSObject, ObservableObject {
                 coordinate: coordinate,
                 placemark: item.placemark)
 
-            // Post notification to add destination annotation to the map
+            // Trigger the exact same map behavior as long press
             DispatchQueue.main.async {
+                print("🚀 FALLBACK SEARCH - POSTING NOTIFICATIONS TO UPDATE MAP:")
+
+                // Post notification to add destination annotation to the map
+                print("   📍 Posting addDestinationAnnotation notification...")
                 NotificationCenter.default.post(
                     name: .addDestinationAnnotation,
                     object: nil,
@@ -343,6 +413,29 @@ class LocationSearchViewModel: NSObject, ObservableObject {
                         "subtitle": localSearch.subtitle,
                     ]
                 )
+                print("   ✅ addDestinationAnnotation notification posted")
+
+                // Post notification to update overlays (circle and polyline)
+                print("   📍 Posting updateCircle notification...")
+                NotificationCenter.default.post(
+                    name: .updateCircle,
+                    object: nil,
+                    userInfo: [
+                        "coordinate": coordinate,
+                        "radius": 500.0,  // Default radius, can be adjusted
+                    ]
+                )
+                print("   ✅ updateCircle notification posted")
+
+                // Post notification to fit map to show both user and destination
+                print("   📍 Posting fitMapToUserAndDestination notification...")
+                NotificationCenter.default.post(
+                    name: .fitMapToUserAndDestination,
+                    object: nil
+                )
+                print("   ✅ fitMapToUserAndDestination notification posted")
+
+                print("🎯 FALLBACK SEARCH - ALL NOTIFICATIONS POSTED")
             }
 
             if let selectedSnoozeLaneLocation = self.selectedSnoozeLaneLocation,
@@ -437,38 +530,69 @@ extension LocationSearchViewModel: MKLocalSearchCompleterDelegate {
         print("🔍 SEARCH COMPLETER RESULTS UPDATED:")
         print("   📍 Results count: \(completer.results.count)")
 
-        for (index, result) in completer.results.enumerated() {
+        // Update results immediately
+        self.results = completer.results
+
+        // Cancel any in-flight coordinate fetches
+        activeSearches.forEach { $0.cancel() }
+        activeSearches.removeAll()
+        fetchWorkItems.forEach { $0.cancel() }
+        fetchWorkItems.removeAll()
+
+        // Limit and stagger coordinate lookups to avoid MKErrorDomain throttling
+        let maxToResolve = min(8, completer.results.count)
+        let resultsToResolve = Array(completer.results.prefix(maxToResolve))
+
+        for (index, result) in resultsToResolve.enumerated() {
             print("   📍 Result \(index + 1):")
             print("      📍 Title: \(result.title)")
             print("      📍 Subtitle: \(result.subtitle)")
-            
-            // Try to get coordinates for this completion
-            let searchRequest = MKLocalSearch.Request(completion: result)
-            let search = MKLocalSearch(request: searchRequest)
-            
-            print("      🔍 Getting coordinates for: \(result.title)")
-            search.start { response, error in
-                if let error = error {
-                    print("      ❌ Error getting coordinates: \(error.localizedDescription)")
-                    return
-                }
-                
-                            if let item = response?.mapItems.first {
-                let coordinate = item.placemark.coordinate
-                print("      ✅ Coordinates for '\(result.title)':")
-                print("         📍 Lat: \(coordinate.latitude)")
-                print("         📍 Lon: \(coordinate.longitude)")
-                
-                // Store the coordinates for this result
-                let resultKey = "\(result.title)_\(result.subtitle)"
-                self.resultCoordinates[resultKey] = coordinate
-            } else {
-                print("      ❌ No coordinates found for: \(result.title)")
-            }
-            }
-        }
 
-        self.results = completer.results
+            let resultKey = "\(result.title)_\(result.subtitle)"
+            if let cached = resultCoordinates[resultKey] {
+                print("      ✅ Using cached coordinates for '\(result.title)': \(cached)")
+                continue
+            }
+
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                let searchRequest = MKLocalSearch.Request(completion: result)
+                let search = MKLocalSearch(request: searchRequest)
+                self.activeSearches.append(search)
+
+                print("      🔍 Getting coordinates (throttled) for: \(result.title)")
+                search.start { [weak self] response, error in
+                    guard let self = self else { return }
+
+                    // Remove from active
+                    if let idx = self.activeSearches.firstIndex(where: { $0 === search }) {
+                        self.activeSearches.remove(at: idx)
+                    }
+
+                    if let error = error {
+                        print("      ❌ Error getting coordinates: \(error.localizedDescription)")
+                        return
+                    }
+
+                    guard let item = response?.mapItems.first else {
+                        print("      ❌ No coordinates found for: \(result.title)")
+                        return
+                    }
+
+                    let coordinate = item.placemark.coordinate
+                    print("      ✅ Coordinates for '\(result.title)':")
+                    print("         📍 Lat: \(coordinate.latitude)")
+                    print("         📍 Lon: \(coordinate.longitude)")
+
+                    self.resultCoordinates[resultKey] = coordinate
+                }
+            }
+
+            fetchWorkItems.append(workItem)
+            // Stagger requests ~150ms apart
+            coordinateFetchQueue.asyncAfter(
+                deadline: .now() + .milliseconds(150 * index), execute: workItem)
+        }
     }
 
     func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {

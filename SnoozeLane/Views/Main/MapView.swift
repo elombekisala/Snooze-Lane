@@ -141,22 +141,24 @@ struct MapView: View {
                         if !isLongPressing {
                             isLongPressing = true
                             longPressLocation = value.startLocation
-                            
+
                             // Start timer for long press detection
-                            longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                            longPressTimer = Timer.scheduledTimer(
+                                withTimeInterval: 0.5, repeats: false
+                            ) { _ in
                                 // Long press detected - place pin at actual location
                                 let coordinate = screenPointToCoordinate(longPressLocation)
                                 let title = "Selected Location"
                                 setDestination(coordinate, title: title)
-                                
+
                                 // Update map state
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     mapState = .locationSelected
                                 }
-                                
+
                                 // Provide haptic feedback
                                 provideHapticFeedback()
-                                
+
                                 // Reset state
                                 isLongPressing = false
                             }
@@ -406,6 +408,15 @@ struct MapView: View {
             }
         }
 
+        // React when a destination is picked from search results
+        .onChange(of: locationViewModel.selectedSnoozeLaneLocation) { newValue in
+            guard let newValue = newValue else { return }
+            let coord = newValue.coordinate
+            let title = newValue.title ?? "Selected Location"
+            print("🧭 MapView observed selectedSnoozeLaneLocation: \(coord)")
+            setDestinationFromSearch(coord, title: title)
+        }
+
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
@@ -546,8 +557,6 @@ struct MapView: View {
             region = newRegion
         }
     }
-
-
 
     private func screenPointToCoordinate(_ screenPoint: CGPoint) -> CLLocationCoordinate2D {
         // Convert screen coordinates to map coordinates

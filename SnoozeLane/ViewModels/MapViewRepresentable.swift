@@ -69,6 +69,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
+        print("🗺️ updateUIView called - mapState: \(mapState)")
         // Update map type if changed
         if uiView.mapType != mapType {
             uiView.mapType = mapType
@@ -79,7 +80,10 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         // Update overlays if location is selected
         if let coordinate = locationViewModel.selectedSnoozeLaneLocation?.coordinate {
+            print("🗺️ updateUIView has selected destination: \(coordinate)")
             context.coordinator.updateOverlays(for: coordinate, radius: alarmDistance)
+        } else {
+            print("🗺️ updateUIView no selected destination available")
         }
     }
 
@@ -128,6 +132,10 @@ extension MapViewRepresentable {
                 self, selector: #selector(handleAddDestinationAnnotation(_:)),
                 name: .addDestinationAnnotation,
                 object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleLocationSelected(_:)),
+                name: .locationSelected,
+                object: nil)
         }
 
         deinit {
@@ -146,11 +154,17 @@ extension MapViewRepresentable {
         }
 
         @objc func handleUpdateCircle(_ notification: Notification) {
+            print("🗺️ MAP: Received updateCircle notification")
+            print("   📍 UserInfo: \(notification.userInfo ?? [:])")
+
             if let userInfo = notification.userInfo,
                 let coordinate = userInfo["coordinate"] as? CLLocationCoordinate2D,
                 let radius = userInfo["radius"] as? Double
             {
+                print("✅ MAP: Updating overlays with coordinate: \(coordinate), radius: \(radius)")
                 updateOverlays(for: coordinate, radius: radius)
+            } else {
+                print("❌ MAP: Invalid userInfo in updateCircle notification")
             }
         }
 
@@ -176,16 +190,32 @@ extension MapViewRepresentable {
         }
 
         @objc func handleAddDestinationAnnotation(_ notification: Notification) {
+            print("🗺️ MAP: Received addDestinationAnnotation notification")
+            print("   📍 UserInfo: \(notification.userInfo ?? [:])")
+
             // Add destination annotation to the map
             guard let userInfo = notification.userInfo,
                 let coordinate = userInfo["coordinate"] as? CLLocationCoordinate2D,
                 let title = userInfo["title"] as? String,
                 let subtitle = userInfo["subtitle"] as? String
-            else { return }
+            else {
+                print("❌ MAP: Invalid userInfo in addDestinationAnnotation notification")
+                return
+            }
+
+            print("✅ MAP: Adding destination annotation:")
+            print("   📍 Title: \(title)")
+            print("   📍 Subtitle: \(subtitle)")
+            print("   📍 Coordinate: \(coordinate)")
 
             DispatchQueue.main.async {
                 // Clear existing annotations first
                 self.parent.mapView.removeAnnotations(self.parent.mapView.annotations)
+                print("🗑️ MAP: Cleared existing annotations")
+
+                // Add new destination annotation
+                self.parent.mapState = .locationSelected
+                print("🔄 MAP: Updated mapState to .locationSelected")
 
                 // Add new destination annotation
                 let annotation = MKPointAnnotation()
@@ -193,9 +223,37 @@ extension MapViewRepresentable {
                 annotation.title = title
                 annotation.subtitle = subtitle
                 self.parent.mapView.addAnnotation(annotation)
+                print("📍 MAP: Added destination annotation to map")
 
                 // Select the annotation to show callout
                 self.parent.mapView.selectAnnotation(annotation, animated: true)
+                print("🎯 MAP: Selected annotation with callout")
+            }
+        }
+
+        @objc func handleLocationSelected(_ notification: Notification) {
+            print("🗺️ MAP: Received locationSelected notification")
+            // Update map state to locationSelected
+            DispatchQueue.main.async {
+                print("🔄 MAP: Updating mapState to .locationSelected")
+                self.parent.mapState = .locationSelected
+                print("✅ MAP: mapState updated to .locationSelected")
+
+                // Ensure overlays are drawn and map is fitted even if other notifications are missed
+                if let coordinate = self.parent.locationViewModel.selectedSnoozeLaneLocation?
+                    .coordinate
+                {
+                    self.updateOverlays(for: coordinate, radius: self.parent.alarmDistance)
+
+                    // If no destination annotations exist, add one for clarity
+                    if self.parent.mapView.annotations.filter({ !($0 is MKUserLocation) }).isEmpty {
+                        self.addAndSelectAnnotation(withCoordinate: coordinate)
+                    }
+
+                    self.fitMapToUserAndDestination()
+                } else {
+                    print("⚠️ MAP: No selectedSnoozeLaneLocation when locationSelected received")
+                }
             }
         }
 
@@ -210,6 +268,7 @@ extension MapViewRepresentable {
         }
 
         func updateOverlays(for coordinate: CLLocationCoordinate2D, radius: Double) {
+            print("🗺️ updateOverlays called with coordinate: \(coordinate), radius: \(radius)")
             // Update circle overlay
             if let existingOverlay = circleOverlay {
                 parent.mapView.removeOverlay(existingOverlay)
@@ -227,7 +286,7 @@ extension MapViewRepresentable {
                 parent.mapView.removeOverlay(existingLine)
             }
 
-            // Get the exact coordinate that MapKit is using for the visual blue user location pin
+            // Resolve user coordinate: prefer MapKit blue-pin coordinate, fallback to LocationManager
             let mapUserLocation = parent.mapView.userLocation.coordinate
             guard let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
             else {
@@ -235,36 +294,43 @@ extension MapViewRepresentable {
                 return
             }
 
-            // Validate coordinates to ensure they are valid
-            guard
-                CLLocationCoordinate2DIsValid(mapUserLocation)
-                    && CLLocationCoordinate2DIsValid(destination)
+            // Determine a valid start coordinate
+            var startCoordinate: CLLocationCoordinate2D? = nil
+            if CLLocationCoordinate2DIsValid(mapUserLocation)
+                && !(abs(mapUserLocation.latitude) < 0.0001
+                    && abs(mapUserLocation.longitude) < 0.0001)
+            {
+                startCoordinate = mapUserLocation
+                print("👤 Using MapKit userLocation for polyline start: \(mapUserLocation)")
+            } else if let managerCoord = parent.locationManager.location?.coordinate,
+                CLLocationCoordinate2DIsValid(managerCoord)
+            {
+                startCoordinate = managerCoord
+                print(
+                    "👤 Using LocationManager coordinate for polyline start (fallback): \(managerCoord)"
+                )
+            }
+
+            guard let resolvedStart = startCoordinate, CLLocationCoordinate2DIsValid(destination)
             else {
-                print("⚠️ Invalid coordinates detected - skipping polyline creation")
+                print(
+                    "⚠️ Could not resolve a valid user start coordinate; skipping polyline creation")
                 return
             }
 
-            // Use the exact MapKit user location coordinate for perfect alignment with the blue pin
-            let startCoordinate = CLLocationCoordinate2D(
-                latitude: mapUserLocation.latitude,
-                longitude: mapUserLocation.longitude
-            )
-
             let endCoordinate = CLLocationCoordinate2D(
-                latitude: destination.latitude,
-                longitude: destination.longitude
-            )
+                latitude: destination.latitude, longitude: destination.longitude)
 
-            let polyline = MKPolyline(coordinates: [startCoordinate, endCoordinate], count: 2)
+            let polyline = MKPolyline(coordinates: [resolvedStart, endCoordinate], count: 2)
             parent.mapView.addOverlay(polyline)
             userToDestinationLine = polyline
 
             // Debug: Log polyline coordinates for verification
             print("🔄 POLYLINE UPDATED:")
-            print("   📍 Start (User): \(startCoordinate.latitude), \(startCoordinate.longitude)")
+            print("   📍 Start (User): \(resolvedStart.latitude), \(resolvedStart.longitude)")
             print("   🎯 End (Destination): \(endCoordinate.latitude), \(endCoordinate.longitude)")
             print(
-                "   📏 Distance: \(CLLocation(latitude: startCoordinate.latitude, longitude: startCoordinate.longitude).distance(from: CLLocation(latitude: endCoordinate.latitude, longitude: endCoordinate.longitude))) meters"
+                "   📏 Distance: \(CLLocation(latitude: resolvedStart.latitude, longitude: resolvedStart.longitude).distance(from: CLLocation(latitude: endCoordinate.latitude, longitude: endCoordinate.longitude))) meters"
             )
         }
 
@@ -395,8 +461,16 @@ extension MapViewRepresentable {
         }
 
         func fitMapToUserAndDestination() {
-            // Use the exact MapKit user location coordinate for perfect alignment
-            let userLocation = parent.mapView.userLocation.coordinate
+            // Use MapKit user coordinate; fallback to LocationManager if needed
+            var userLocation = parent.mapView.userLocation.coordinate
+            if !CLLocationCoordinate2DIsValid(userLocation)
+                || (abs(userLocation.latitude) < 0.0001 && abs(userLocation.longitude) < 0.0001)
+            {
+                if let managerCoord = parent.locationManager.location?.coordinate {
+                    userLocation = managerCoord
+                    print("👤 fitMap fallback using LocationManager coordinate: \(managerCoord)")
+                }
+            }
             guard let destination = parent.locationViewModel.selectedSnoozeLaneLocation?.coordinate
             else { return }
 
