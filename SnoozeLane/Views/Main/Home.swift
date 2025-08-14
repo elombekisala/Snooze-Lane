@@ -2,6 +2,7 @@ import AudioToolbox
 import Combine
 import MapKit
 import SwiftUI
+import Foundation
 
 struct Home: View {
     @State private var mapState: MapViewState = .noInput
@@ -13,6 +14,8 @@ struct Home: View {
     @EnvironmentObject var loginViewModel: LoginViewModel
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var windowSharedModel: WindowSharedModel
+    
+
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -61,6 +64,7 @@ struct Home: View {
                 .animation(.easeInOut(duration: 0.3), value: mapState)
             }
         }
+
         .sheet(isPresented: $showSearchModal) {
             // Enhanced Search Modal View
             VStack(spacing: 16) {
@@ -120,10 +124,23 @@ struct Home: View {
                 if locationViewModel.queryFragment.isEmpty {
                     // Quick Destination Options
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Quick Destinations")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal)
+                        HStack {
+                            Text("Quick Destinations")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                // TODO: Add edit mode for quick destinations
+                                print("Edit quick destinations")
+                            }) {
+                                Image(systemName: "pencil.circle")
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .font(.title3)
+                            }
+                        }
+                        .padding(.horizontal)
 
                         // Home
                         QuickDestinationButton(
@@ -241,6 +258,8 @@ struct Home: View {
         print("Destination selected: \(title) at \(coordinate)")
     }
 }
+
+
 
 // Simple Quick Destination Button
 struct QuickDestinationButton: View {
