@@ -398,9 +398,9 @@ extension MapViewRepresentable {
             parent.locationViewModel.reverseGeocodeLocation(coordinate) { [weak self] address in
                 guard let self = self else { return }
                 let title = address ?? "Selected Location"
-                
+
                 print("🗺️ LONG PRESS: Reverse geocoded address: \(title)")
-                
+
                 // Set the selected location in the view model (same as search selection)
                 self.parent.locationViewModel.selectedSnoozeLaneLocation = SnoozeLaneLocation(
                     title: title,
@@ -412,14 +412,14 @@ extension MapViewRepresentable {
                 // Post the EXACT SAME notifications as search selection
                 DispatchQueue.main.async {
                     print("🚀 LONG PRESS: POSTING NOTIFICATIONS TO UPDATE MAP:")
-                    
+
                     // Post notification to add destination annotation to the map
                     print("   📍 Posting addDestinationAnnotation notification...")
                     NotificationCenter.default.post(
                         name: .addDestinationAnnotation,
                         object: nil,
                         userInfo: [
-                            "coordinate": coordinate, "title": title, "subtitle": nil
+                            "coordinate": coordinate, "title": title, "subtitle": nil,
                         ]
                     )
                     print("   ✅ addDestinationAnnotation notification posted")

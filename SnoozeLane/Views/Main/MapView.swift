@@ -906,10 +906,27 @@ struct MapView: View {
         // Provide haptic feedback
         provideHapticFeedback()
 
-        // Show alert or notification
-        // For now, just end the trip
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            endTrip()
+        print("🎯 MapView: Destination reached - user within alarm distance")
+        print("🎯 MapView: Trip will continue until user manually ends it or reaches actual destination")
+        
+        // Don't automatically end the trip - let it continue
+        // The Firebase function will be triggered by TripProgressViewModel.checkThresholdReached
+        // when the user crosses the 500m threshold
+        
+        // Only end trip if user is very close (within 50m) to actual destination
+        if let destination = selectedDestination {
+            let destinationLocation = CLLocation(
+                latitude: destination.latitude, longitude: destination.longitude)
+            let distance = locationManager.location?.distance(from: destinationLocation) ?? 0
+            
+            if distance <= 50.0 {
+                print("🎯 MapView: User very close to destination (50m), ending trip")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    endTrip()
+                }
+            } else {
+                print("🎯 MapView: User within alarm distance but not at destination yet, continuing trip")
+            }
         }
     }
 
