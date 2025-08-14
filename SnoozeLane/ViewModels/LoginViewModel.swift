@@ -267,17 +267,31 @@ class LoginViewModel: ObservableObject {
         Country(name: "U.S. Virgin Islands", code: "340", flag: "🇻🇮"),
     ]
 
-    // getting country Phone Code....
-    
+    // Country code mapping for region detection
+    private let countries: [String: String] = [
+        "US": "1", "CA": "1", "MX": "52", "GB": "44", "DE": "49", "FR": "33", "IT": "39",
+        "ES": "34",
+        "AU": "61", "JP": "81", "CN": "86", "IN": "91", "BR": "55", "RU": "7", "KR": "82",
+        "CA": "1",
+        "MX": "52", "AR": "54", "CL": "56", "CO": "57", "PE": "51", "VE": "58", "EC": "593",
+        "BO": "591",
+        "PY": "595", "UY": "598", "GY": "592", "SR": "597", "GF": "594", "FK": "500", "GS": "500",
+        "TC": "1", "VG": "1", "VI": "1", "PR": "1", "DO": "1", "HT": "509", "JM": "1", "BB": "1",
+        "TT": "1", "GD": "1", "LC": "1", "VC": "1", "AG": "1", "KN": "1", "DM": "1", "MS": "1",
+        "AW": "297", "CW": "599", "SX": "1", "BQ": "599", "AI": "1", "BM": "1", "IO": "246",
+        "KY": "1",
+        "TC": "1", "VG": "1", "VI": "1", "PR": "1", "DO": "1", "HT": "509", "JM": "1", "BB": "1",
+        "TT": "1", "GD": "1", "LC": "1", "VC": "1", "AG": "1", "KN": "1", "DM": "1", "MS": "1",
+    ]
+
     // Computed property for filtered countries based on search
     var filteredCountries: [Country] {
         if searchText.isEmpty {
             return allCountries
         } else {
             return allCountries.filter { country in
-                country.name.lowercased().contains(searchText.lowercased()) ||
-                country.code.contains(searchText) ||
-                country.flag.contains(searchText)
+                country.name.lowercased().contains(searchText.lowercased())
+                    || country.code.contains(searchText) || country.flag.contains(searchText)
             }
         }
     }
@@ -331,6 +345,7 @@ class LoginViewModel: ObservableObject {
             // For simulator testing
             Auth.auth().settings?.isAppVerificationDisabledForTesting = true
             let number = "+\(getCountryCode())\(phNo)"
+            self.fullPhoneNumber = number
 
             // Use a test verification ID for simulator
             self.CODE = "test-verification-id"
@@ -341,6 +356,7 @@ class LoginViewModel: ObservableObject {
             // For real device
             Auth.auth().settings?.isAppVerificationDisabledForTesting = false
             let number = "+\(getCountryCode())\(phNo)"
+            self.fullPhoneNumber = number
 
             PhoneAuthProvider.provider().verifyPhoneNumber(number, uiDelegate: nil) { (CODE, err) in
                 if let error = err {
@@ -362,20 +378,35 @@ class LoginViewModel: ObservableObject {
         #if targetEnvironment(simulator)
             // For simulator testing
             if code == testVerificationCode {
-                withAnimation {
-                    self.status = true
-                    self.loading = false
-                }
-                // Firestore: Link phone number to UID
-                if let user = Auth.auth().currentUser {
-                    let db = Firestore.firestore()
-                    let userRef = db.collection("Users").document(user.uid)
-                    let phoneNumber = user.phoneNumber ?? self.fullPhoneNumber
-                    userRef.setData(
-                        [
-                            "phoneNumber": phoneNumber,
-                            "CallCount": 0,
-                        ], merge: true)
+                // Create a test user account for simulator
+                let testUID = "simulator-test-user-\(UUID().uuidString)"
+                let db = Firestore.firestore()
+                let userRef = db.collection("Users").document(testUID)
+
+                userRef.setData([
+                    "phoneNumber": self.fullPhoneNumber,
+                    "CallCount": 0,
+                    "createdAt": FieldValue.serverTimestamp(),
+                    "isSimulatorUser": true,
+                ]) { error in
+                    if let error = error {
+                        self.errorMsg = "Error creating test user: \(error.localizedDescription)"
+                        withAnimation {
+                            self.error.toggle()
+                            self.loading = false
+                        }
+                        return
+                    }
+
+                    // Successfully created test user
+                    withAnimation {
+                        self.status = true
+                        self.loading = false
+                    }
+
+                    print(
+                        "✅ Simulator test user created successfully with phone: \(self.fullPhoneNumber)"
+                    )
                 }
             } else {
                 self.errorMsg = "Invalid verification code. Use: \(testVerificationCode)"

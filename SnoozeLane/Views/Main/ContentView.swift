@@ -10,24 +10,24 @@ import SwiftUI
 struct ContentView: View {
     
     @AppStorage("hasCompletedWalkthrough") var hasCompletedWalkthrough: Bool = false
-    @AppStorage("log_Status") var status = false
     @EnvironmentObject var locationManager: LocationManager
+    @EnvironmentObject var loginViewModel: LoginViewModel
     
     var body: some View {
         
         Group {
-            if !status {
+            if !loginViewModel.status {
                 // User is not logged in
                 NavigationView {
                     Login()
                         .navigationBarHidden(true)
                         .navigationBarBackButtonHidden(true)
                 }
-            } else if status && !hasCompletedWalkthrough {
+            } else if loginViewModel.status && !hasCompletedWalkthrough {
                 // User is logged in but hasn't completed the walkthrough
                 WalkthroughScreen()
                     
-            } else if status && hasCompletedWalkthrough {
+            } else if loginViewModel.status && hasCompletedWalkthrough {
                 // User is logged in and has completed the walkthrough
                 Home()
                     
